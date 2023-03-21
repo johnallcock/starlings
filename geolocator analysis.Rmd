@@ -1,0 +1,156 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#Load required packages
+```{r}
+library(GeoLight)
+library(raster)
+library(rnaturalearth)
+library(ggplot2)
+library(dplyr)
+library(sf)
+sf_use_s2(FALSE) 
+library(devtools)
+library(usethis)
+library(processx)
+library(sgat)
+library(zoo)
+
+```
+
+#Import transitions files
+```{r}
+SSIN_878_transitions <- read.csv ("SSIN_878_transitions.csv", row.names=1, header = T)
+SSIN_878_transitions$tFirst <- as.POSIXct(strptime(SSIN_878_transitions$tFirst, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
+SSIN_878_transitions$tSecond <- as.POSIXct(strptime(SSIN_878_transitions$tSecond, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
+
+SSIN_872_transitions <- read.csv ("SSIN_872_transitions.csv", row.names=1, header = T)
+SSIN_872_transitions$tFirst <- as.POSIXct(strptime(SSIN_872_transitions$tFirst, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
+SSIN_872_transitions$tSecond <- as.POSIXct(strptime(SSIN_872_transitions$tSecond, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
+
+SSIN_874_transitions <- read.csv ("SSIN_874_transitions.csv", row.names=1, header = T)
+SSIN_874_transitions$tFirst <- as.POSIXct(strptime(SSIN_874_transitions$tFirst, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
+SSIN_874_transitions$tSecond <- as.POSIXct(strptime(SSIN_874_transitions$tSecond, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
+
+SSIN_880_transitions <- read.csv ("SSIN_880_transitions.csv", row.names=1, header = T)
+SSIN_880_transitions$tFirst <- as.POSIXct(strptime(SSIN_880_transitions$tFirst, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
+SSIN_880_transitions$tSecond <- as.POSIXct(strptime(SSIN_880_transitions$tSecond, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
+
+SSIN_884_transitions <- read.csv ("SSIN_884_transitions.csv", row.names=1, header = T)
+SSIN_884_transitions$tFirst <- as.POSIXct(strptime(SSIN_884_transitions$tFirst, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
+SSIN_884_transitions$tSecond <- as.POSIXct(strptime(SSIN_884_transitions$tSecond, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
+
+SSIN_876_transitions <- read.csv ("SSIN_876_transitions.csv", row.names=1, header = T)
+SSIN_876_transitions$tFirst <- as.POSIXct(strptime(SSIN_876_transitions$tFirst, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
+SSIN_876_transitions$tSecond <- as.POSIXct(strptime(SSIN_876_transitions$tSecond, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
+
+```
+
+#Set up function to remove uncertain locations during equinox
+```{r}
+equinox_remove <- function(file) {
+  aut_equinox_start <- as.POSIXct("2021-09-09", format = "%Y-%m-%d",  tz = "GMT")
+  aut_equinox_end <- as.POSIXct("2021-10-07", format = "%Y-%m-%d",  tz = "GMT")
+  spr_equinox_start <- as.POSIXct("2022-03-06", format = "%Y-%m-%d",  tz = "GMT")
+  spr_equinox_end <- as.POSIXct("2022-04-03", format = "%Y-%m-%d",  tz = "GMT")
+  
+  clipped <- subset(file, tFirst < aut_equinox_start | (tSecond > aut_equinox_end & tFirst < spr_equinox_start) | tSecond > spr_equinox_end)
+  return(clipped)
+
+}
+
+SSIN_872_transitions_clip <- equinox_remove(SSIN_872_transitions)
+SSIN_874_transitions_clip <- equinox_remove(SSIN_874_transitions)
+SSIN_876_transitions_clip <- equinox_remove(SSIN_876_transitions)
+SSIN_878_transitions_clip <- equinox_remove(SSIN_878_transitions)
+SSIN_880_transitions_clip <- equinox_remove(SSIN_880_transitions)
+SSIN_884_transitions_clip <- equinox_remove(SSIN_884_transitions)
+
+
+```
+
+#Introduce Loess function to remove outliers
+```{r}
+loess_remove <- function(file) {
+  keep <- loessFilter(file,k = 1, plot = F)
+  clipped <- file[keep,]
+  
+  return(clipped)
+}
+
+SSIN_872_transitions_clip2 <- loess_remove(SSIN_872_transitions_clip)
+SSIN_874_transitions_clip2 <- loess_remove(SSIN_874_transitions_clip)
+SSIN_876_transitions_clip2 <- loess_remove(SSIN_876_transitions_clip)
+SSIN_878_transitions_clip2 <- loess_remove(SSIN_878_transitions_clip)
+SSIN_880_transitions_clip2 <- loess_remove(SSIN_880_transitions_clip)
+SSIN_884_transitions_clip2 <- loess_remove(SSIN_884_transitions_clip)
+
+```
+
+# calculate the sun elevation angle. I used SSIN 880 because it is the one that worked the best.
+the calibration days do not seem to work very well with the model, and so I estimated the time where the bird would be at the site at the end of the season. 
+```{r}
+SunElev880<-getElevation(tFirst=SSIN_880_transitions[613:730,1],
+                         tSecond = SSIN_880_transitions[613:730,2],
+                         type = SSIN_880_transitions[613:730,3],
+                         known.coord=c(114.07,22.5),
+                         plot=TRUE, method="gamma")
+
+```
+
+
+#Function to estimate the locations for each individual
+```{r}
+get_location <- function(file, individual) {
+ locations <- coord(file$tFirst, file$tSecond, file$type, degElevation=-4.172)
+ locations_df <- as.data.frame(locations)
+ locations_df$Date <- as.Date.POSIXct(file$tFirst)
+ locations_df$Individual <- individual
+ locations_df <- locations_df[,c(4,3,1,2)]
+   
+ return(locations_df)
+}
+
+SSIN_872_locations <- get_location(SSIN_872_transitions_clip2, "872")
+SSIN_874_locations <- get_location(SSIN_874_transitions_clip2, "874")
+SSIN_876_locations <- get_location(SSIN_876_transitions_clip2, "876")
+SSIN_878_locations <- get_location(SSIN_878_transitions_clip2, "878")
+SSIN_880_locations <- get_location(SSIN_880_transitions_clip2, "880")
+SSIN_884_locations <- get_location(SSIN_884_transitions_clip2, "884")
+
+```
+
+#Calculate rolling means of locations
+I've included this for 3, 5 and 10 days, we can adjust to other frequencies
+```{r}
+rolling <- function(location_file) {
+  rolling <- location_file %>%
+  mutate(lon3day = rollmean(lon, k=3, fill=NA, align='right')) %>%
+  mutate(lat3day = rollmean(lat, k=3, fill=NA, align='right')) %>%
+  mutate(lon5day = rollmean(lon, k=5, fill=NA, align='right')) %>%
+  mutate(lat5day = rollmean(lat, k=5, fill=NA, align='right')) %>%
+  mutate(lon10day = rollmean(lon, k=10, fill=NA, align='right')) %>%
+  mutate(lat10day = rollmean(lat, k=10, fill=NA, align='right'))
+
+  return(rolling)
+}
+
+SSIN_872_rolling <- rolling(SSIN_872_locations)
+SSIN_874_rolling <- rolling(SSIN_874_locations)
+SSIN_876_rolling <- rolling(SSIN_876_locations)
+SSIN_878_rolling <- rolling(SSIN_878_locations)
+SSIN_880_rolling <- rolling(SSIN_880_locations)
+SSIN_884_rolling <- rolling(SSIN_884_locations)
+
+```
+
+#Graphs showing longitude (actual and smoothed over 5 days) to estimate migration dates
+```{r}
+ggplot(data = SSIN_872_rolling) +
+  geom_line(aes(x = Date, y = lon)) +
+  geom_line(aes(x = Date, y = lon5day, colour = "red"))
+
+```
+
