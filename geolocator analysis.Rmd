@@ -20,31 +20,23 @@ library(zoo)
 
 ```
 
+
 #Import transitions files
 ```{r}
-SSIN_878_transitions <- read.csv ("SSIN_878_transitions.csv", row.names=1, header = T)
-SSIN_878_transitions$tFirst <- as.POSIXct(strptime(SSIN_878_transitions$tFirst, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
-SSIN_878_transitions$tSecond <- as.POSIXct(strptime(SSIN_878_transitions$tSecond, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
+import_transition <- function(transition_file) {
+  transition <- read.csv (transition_file, row.names=1, header = T)
+  transition$tFirst <- as.POSIXct(strptime(transition$tFirst, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
+  transition$tSecond <- as.POSIXct(strptime(transition$tSecond, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
+  
+  return(transition)
+}
 
-SSIN_872_transitions <- read.csv ("SSIN_872_transitions.csv", row.names=1, header = T)
-SSIN_872_transitions$tFirst <- as.POSIXct(strptime(SSIN_872_transitions$tFirst, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
-SSIN_872_transitions$tSecond <- as.POSIXct(strptime(SSIN_872_transitions$tSecond, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
-
-SSIN_874_transitions <- read.csv ("SSIN_874_transitions.csv", row.names=1, header = T)
-SSIN_874_transitions$tFirst <- as.POSIXct(strptime(SSIN_874_transitions$tFirst, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
-SSIN_874_transitions$tSecond <- as.POSIXct(strptime(SSIN_874_transitions$tSecond, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
-
-SSIN_880_transitions <- read.csv ("SSIN_880_transitions.csv", row.names=1, header = T)
-SSIN_880_transitions$tFirst <- as.POSIXct(strptime(SSIN_880_transitions$tFirst, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
-SSIN_880_transitions$tSecond <- as.POSIXct(strptime(SSIN_880_transitions$tSecond, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
-
-SSIN_884_transitions <- read.csv ("SSIN_884_transitions.csv", row.names=1, header = T)
-SSIN_884_transitions$tFirst <- as.POSIXct(strptime(SSIN_884_transitions$tFirst, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
-SSIN_884_transitions$tSecond <- as.POSIXct(strptime(SSIN_884_transitions$tSecond, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
-
-SSIN_876_transitions <- read.csv ("SSIN_876_transitions.csv", row.names=1, header = T)
-SSIN_876_transitions$tFirst <- as.POSIXct(strptime(SSIN_876_transitions$tFirst, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
-SSIN_876_transitions$tSecond <- as.POSIXct(strptime(SSIN_876_transitions$tSecond, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
+SSIN_872_transitions <- import_transition("SSIN_872_transitions.csv")
+SSIN_874_transitions <- import_transition("SSIN_874_transitions.csv")
+SSIN_876_transitions <- import_transition("SSIN_876_transitions.csv")
+SSIN_878_transitions <- import_transition("SSIN_878_transitions.csv")
+SSIN_880_transitions <- import_transition("SSIN_880_transitions.csv")
+SSIN_884_transitions <- import_transition("SSIN_884_transitions.csv")
 
 ```
 
@@ -89,19 +81,67 @@ SSIN_884_transitions_clip2 <- loess_remove(SSIN_884_transitions_clip)
 
 ```
 
+#If we are happy with the above filters, the import and filtering can be simplified to this equation
+```{r}
+SSIN_872_transitions_clipb <-
+  loess_remove(equinox_remove(import_transition("SSIN_872_transitions.csv")))
+SSIN_874_transitions_clipb <-
+  loess_remove(equinox_remove(import_transition("SSIN_874_transitions.csv")))
+SSIN_876_transitions_clipb <-
+  loess_remove(equinox_remove(import_transition("SSIN_876_transitions.csv")))
+SSIN_878_transitions_clipb <-
+  loess_remove(equinox_remove(import_transition("SSIN_878_transitions.csv")))
+SSIN_880_transitions_clipb <-
+  loess_remove(equinox_remove(import_transition("SSIN_880_transitions.csv")))
+SSIN_884_transitions_clipb <-
+  loess_remove(equinox_remove(import_transition("SSIN_884_transitions.csv")))
+
+```
+
+
 # calculate the sun elevation angle. I used SSIN 880 because it is the one that worked the best.
+#The first equation here is the equation that Pia has used:
 the calibration days do not seem to work very well with the model, and so I estimated the time where the bird would be at the site at the end of the season. 
+#The two functions are something John's written to calculate sun elevation based on the calibration periods at the start and the end.
+#THESE TWO APPROACHES GIVE DIFFERENT RESULTS. WE NEED TO WORK OUT WHICH IS BEST!
 ```{r}
 SunElev880<-getElevation(tFirst=SSIN_880_transitions[613:730,1],
                          tSecond = SSIN_880_transitions[613:730,2],
                          type = SSIN_880_transitions[613:730,3],
                          known.coord=c(114.07,22.5),
                          plot=TRUE, method="gamma")
+tail(SSIN_872_transitions)
+SSIN_872_transitions[1:14,]
 
+calibrate <- function(file, start1, end1, start2, end2) {
+  subset <- subset(file, (tFirst > as.POSIXct(start1, format = "%Y-%m-%d %H:%M") & tSecond < as.POSIXct(end1, format = "%Y-%m-%d %H:%M")) | (tFirst > as.POSIXct(start2, format = "%Y-%m-%d %H:%M") & tSecond < as.POSIXct(end2, format = "%Y-%m-%d %H:%M")))
+  calib <- getElevation(tFirst = subset[,1],
+                         tSecond = subset[,2],
+                         type = subset[,3],
+                         known.coord=c(114.140,22.445),
+                         plot=TRUE, method="gamma")
+  return(calib)
+}
+
+calibrate <- function(file, start1, end1) {
+  subset <- subset(file, (tFirst > as.POSIXct(start1, format = "%Y-%m-%d %H:%M") & tSecond < as.POSIXct(end1, format = "%Y-%m-%d %H:%M")))
+  calib <- getElevation(tFirst = subset[,1],
+                         tSecond = subset[,2],
+                         type = subset[,3],
+                         known.coord=c(114.140,22.445),
+                         plot=TRUE, method="gamma")
+  return(calib)
+}
+
+
+SunElev872 <- calibrate(SSIN_872_transitions, "2021-05-30 16:00", "2021-06-07 16:00", "2022-05-06 16:00", "2022-05-10 16:00")
+SunElev872 <- calibrate(SSIN_872_transitions[-c(6,7),], "2021-05-30 16:00", "2021-06-07 16:00")
+str(SunElev872)
 ```
 
 
 #Function to estimate the locations for each individual
+This uses the elevation Pai calculated. We should confirm that this is correct, instead of recalculating for each bird
 ```{r}
 get_location <- function(file, individual) {
  locations <- coord(file$tFirst, file$tSecond, file$type, degElevation=-4.172)
@@ -120,10 +160,14 @@ SSIN_878_locations <- get_location(SSIN_878_transitions_clip2, "878")
 SSIN_880_locations <- get_location(SSIN_880_transitions_clip2, "880")
 SSIN_884_locations <- get_location(SSIN_884_transitions_clip2, "884")
 
+
+
 ```
 
+
 #Calculate rolling means of locations
-I've included this for 3, 5 and 10 days, we can adjust to other frequencies
+- I've included this for 3, 5 and 10 days, we can adjust to other frequencies. 
+- May help to simplify some of the results and reduce noise, but it may not be necessary
 ```{r}
 rolling <- function(location_file) {
   rolling <- location_file %>%
@@ -146,11 +190,78 @@ SSIN_884_rolling <- rolling(SSIN_884_locations)
 
 ```
 
+
 #Graphs showing longitude (actual and smoothed over 5 days) to estimate migration dates
+Equinox periods shaded as grey
 ```{r}
-ggplot(data = SSIN_872_rolling) +
-  geom_line(aes(x = Date, y = lon)) +
-  geom_line(aes(x = Date, y = lon5day, colour = "red"))
+equinox_graph <- ggplot() +
+  geom_rect(aes(xmin = as.Date("2021-09-09", format = "%Y-%m-%d"), xmax = as.Date("2021-10-07", format = "%Y-%m-%d"), ymin = -Inf, ymax = Inf)) +
+  geom_rect(aes(xmin = as.Date("2022-03-06", format = "%Y-%m-%d"), xmax = as.Date("2022-04-03", format = "%Y-%m-%d"), ymin = -Inf, ymax = Inf))
+
+equinox_graph + geom_line(data = SSIN_872_rolling, aes(x = Date, y = lon))
+equinox_graph + geom_line(data = SSIN_874_rolling, aes(x = Date, y = lon))
+equinox_graph + geom_line(data = SSIN_876_rolling, aes(x = Date, y = lon))
+equinox_graph + geom_line(data = SSIN_878_rolling, aes(x = Date, y = lon))
+equinox_graph + geom_line(data = SSIN_880_rolling, aes(x = Date, y = lon))
+equinox_graph + geom_line(data = SSIN_884_rolling, aes(x = Date, y = lon))
+
+```
+
+
+#Sets up a background map cropped to approriate area to use for creating maps
+```{r}
+worldmap <- rnaturalearth::ne_countries(scale="medium", returnclass="sf")     
+background_map <- ggplot() + 
+  geom_sf(data = worldmap, fill="grey30", lwd=0.1, projection=st_crs("+proj=longlat +datum=WGS84"))+         
+  coord_sf(xlim=c(100,130), ylim=c(5,35))                                       
+
+background_map
+```
+
+
+#Creates a map with all birds, showing data points between the two equinox periods
+```{r}
+background_map +
+  geom_point(data=subset(SSIN_872_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="878"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_874_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="872"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_876_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="874"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_878_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="884"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_880_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="880"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_884_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="876"), size=1, shape=20)
+
+str(SSIN_878_rolling)
+```
+
+#Creates a map with all birds showing an ellipse for the period January-February (mid-winter range)
+```{r}
+background_map +
+  stat_ellipse(data=subset(SSIN_872_rolling, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="878"), size=1, shape=20)+
+  stat_ellipse(data=subset(SSIN_874_rolling, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="872"), size=1, shape=20)+
+  stat_ellipse(data=subset(SSIN_876_rolling, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="874"), size=1, shape=20)+
+  stat_ellipse(data=subset(SSIN_878_rolling, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="884"), size=1, shape=20)+
+  stat_ellipse(data=subset(SSIN_880_rolling, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="880"), size=1, shape=20)+
+  stat_ellipse(data=subset(SSIN_884_rolling, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="876"), size=1, shape=20)
+
+```
+
+
+#This draws the ellipse for each month for an individual. I need to adjust how to deal with aesthetics (currently all ellipses are the same colour!)
+```{r}
+date_ellipse <- function(file, start_date, end_date) {
+  date_ellipse <- stat_ellipse(data=subset(file, Date > start_date & Date < end_date), aes(x=lon, y=lat), size=1, shape=20)
+  
+  return(date_ellipse)
+}  
+
+background_map +
+  date_ellipse(SSIN_874_rolling, "2021-09-01", "2021-09-30") +
+  date_ellipse(SSIN_874_rolling, "2021-10-01", "2021-10-31") +
+  date_ellipse(SSIN_874_rolling, "2021-11-01", "2021-11-30") +
+  date_ellipse(SSIN_874_rolling, "2021-12-01", "2021-12-31") +
+  date_ellipse(SSIN_874_rolling, "2022-01-01", "2022-01-31") +
+  date_ellipse(SSIN_874_rolling, "2022-02-01", "2022-02-28") +
+  date_ellipse(SSIN_874_rolling, "2022-03-01", "2022-03-31")
+
 
 ```
 
