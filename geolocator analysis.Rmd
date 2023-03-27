@@ -21,6 +21,52 @@ library(zoo)
 ```
 
 
+#Import the .lux files (use drift adjusted where possible)
+```{r}
+SSIN_872 <- luxTrans("CB872_11May22_081102driftadj.lux") 
+SSIN_878 <- luxTrans("CB878_11May22_082526driftadj.lux") 
+SSIN_874 <- luxTrans("CB874_20May22_034702driftadj.lux")
+SSIN_884 <- luxTrans("CB884_24May22_014703driftadj.lux") 
+SSIN_880 <- luxTrans("CB880_31May22_012458driftadj.lux")
+SSIN_876 <- luxTrans("CB876_05Jun22_224306driftadj.lux")
+SSIN_867 <- luxTrans("CB867_15Jul22_054342driftadj.lux")
+SSIN_875 <- luxTrans("CB875_21Sep22_185524.lux")
+
+SSIN_872$datetime <- as.POSIXct(strptime(SSIN_872$datetime, format = "%Y-%m-%d %H:%M:%S", tz = "GMT"))
+SSIN_878$datetime <- as.POSIXct(strptime(SSIN_878$datetime, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
+SSIN_874$datetime <- as.POSIXct(strptime(SSIN_874$datetime, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
+SSIN_884$datetime <- as.POSIXct(strptime(SSIN_884$datetime, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
+SSIN_880$datetime <- as.POSIXct(strptime(SSIN_880$datetime, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
+SSIN_876$datetime <- as.POSIXct(strptime(SSIN_876$datetime, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
+SSIN_867$datetime <- as.POSIXct(strptime(SSIN_867$datetime, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
+SSIN_875$datetime <- as.POSIXct(strptime(SSIN_875$datetime, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
+
+
+```
+
+
+```{r}
+SSIN_867_transitions<- twilightCalc(SSIN_867$datetime, SSIN_867$light, LightThreshold=5,ask=TRUE)
+SSIN_872_transitions<- twilightCalc(SSIN_872$datetime, SSIN_872$light, LightThreshold=5,ask=TRUE)
+SSIN_874_transitions<- twilightCalc(SSIN_874$datetime, SSIN_874$light, LightThreshold=5,ask=TRUE)
+SSIN_875_transitions<- twilightCalc(SSIN_875$datetime, SSIN_875$light, LightThreshold=5,ask=TRUE)
+SSIN_876_transitions<- twilightCalc(SSIN_876$datetime, SSIN_876$light, LightThreshold=5,ask=TRUE)
+SSIN_878_transitions<- twilightCalc(SSIN_878$datetime, SSIN_878$light, LightThreshold=5,ask=TRUE)
+SSIN_880_transitions<- twilightCalc(SSIN_880$datetime, SSIN_880$light, LightThreshold=5,ask=TRUE)
+SSIN_884_transitions<- twilightCalc(SSIN_884$datetime, SSIN_884$light, LightThreshold=5,ask=TRUE)
+
+
+SSIN_875_transitions <- SSIN_875_transitions[-c(709:716),] #This removes records at the end when the tag malfunctioned
+
+subset(SSIN_867_transitions, tFirst > as.POSIXct("2021-07-23", format = "%Y-%m-%d") & tSecond < as.POSIXct("2021-07-26", format = "%Y-%m-%d"))
+
+write.csv(SSIN_867_transitions, "SSIN_867_transitions.csv")
+write.csv(SSIN_875_transitions, "SSIN_875_transitions.csv")
+
+```
+
+
+
 #Import transitions files
 ```{r}
 import_transition <- function(transition_file) {
@@ -31,8 +77,10 @@ import_transition <- function(transition_file) {
   return(transition)
 }
 
+SSIN_867_transitions <- import_transition("SSIN_867_transitions.csv")
 SSIN_872_transitions <- import_transition("SSIN_872_transitions.csv")
 SSIN_874_transitions <- import_transition("SSIN_874_transitions.csv")
+SSIN_875_transitions <- import_transition("SSIN_875_transitions.csv")
 SSIN_876_transitions <- import_transition("SSIN_876_transitions.csv")
 SSIN_878_transitions <- import_transition("SSIN_878_transitions.csv")
 SSIN_880_transitions <- import_transition("SSIN_880_transitions.csv")
@@ -53,8 +101,10 @@ equinox_remove <- function(file) {
 
 }
 
+SSIN_867_transitions_clip <- equinox_remove(SSIN_867_transitions)
 SSIN_872_transitions_clip <- equinox_remove(SSIN_872_transitions)
 SSIN_874_transitions_clip <- equinox_remove(SSIN_874_transitions)
+SSIN_875_transitions_clip <- equinox_remove(SSIN_875_transitions)
 SSIN_876_transitions_clip <- equinox_remove(SSIN_876_transitions)
 SSIN_878_transitions_clip <- equinox_remove(SSIN_878_transitions)
 SSIN_880_transitions_clip <- equinox_remove(SSIN_880_transitions)
@@ -72,8 +122,10 @@ loess_remove <- function(file) {
   return(clipped)
 }
 
+SSIN_867_transitions_clip2 <- loess_remove(SSIN_867_transitions_clip)
 SSIN_872_transitions_clip2 <- loess_remove(SSIN_872_transitions_clip)
 SSIN_874_transitions_clip2 <- loess_remove(SSIN_874_transitions_clip)
+SSIN_875_transitions_clip2 <- loess_remove(SSIN_875_transitions_clip)
 SSIN_876_transitions_clip2 <- loess_remove(SSIN_876_transitions_clip)
 SSIN_878_transitions_clip2 <- loess_remove(SSIN_878_transitions_clip)
 SSIN_880_transitions_clip2 <- loess_remove(SSIN_880_transitions_clip)
@@ -83,10 +135,14 @@ SSIN_884_transitions_clip2 <- loess_remove(SSIN_884_transitions_clip)
 
 #If we are happy with the above filters, the import and filtering can be simplified to this equation
 ```{r}
+SSIN_867_transitions_clipb <-
+  loess_remove(equinox_remove(import_transition("SSIN_867_transitions.csv")))
 SSIN_872_transitions_clipb <-
   loess_remove(equinox_remove(import_transition("SSIN_872_transitions.csv")))
 SSIN_874_transitions_clipb <-
   loess_remove(equinox_remove(import_transition("SSIN_874_transitions.csv")))
+SSIN_875_transitions_clipb <-
+  loess_remove(equinox_remove(import_transition("SSIN_875_transitions.csv")))
 SSIN_876_transitions_clipb <-
   loess_remove(equinox_remove(import_transition("SSIN_876_transitions.csv")))
 SSIN_878_transitions_clipb <-
@@ -110,6 +166,7 @@ SunElev880<-getElevation(tFirst=SSIN_880_transitions[613:730,1],
                          type = SSIN_880_transitions[613:730,3],
                          known.coord=c(114.07,22.5),
                          plot=TRUE, method="gamma")
+?getElevation
 tail(SSIN_872_transitions)
 SSIN_872_transitions[1:14,]
 
@@ -137,11 +194,25 @@ calibrate <- function(file, start1, end1) {
 SunElev872 <- calibrate(SSIN_872_transitions, "2021-05-30 16:00", "2021-06-07 16:00", "2022-05-06 16:00", "2022-05-10 16:00")
 SunElev872 <- calibrate(SSIN_872_transitions[-c(6,7),], "2021-05-30 16:00", "2021-06-07 16:00")
 str(SunElev872)
+
+SunElev875 <- calibrate(SSIN_875_transitions, "2021-05-18 16:00", "2021-05-26 16:00")
+str(SunElev872)
+
+  subset <- subset(SSIN_875_transitions, (tFirst > as.POSIXct("2021-05-18 16:00", format = "%Y-%m-%d %H:%M") & tSecond < as.POSIXct("2021-05-26 16:00", format = "%Y-%m-%d %H:%M")))
+  calib <- getElevation(tFirst = subset[,1],
+                         tSecond = subset[,2],
+                         type = subset[,3],
+                         known.coord=c(114.140,22.445),
+                         plot=TRUE, method="gamma")
+
+
+getElevation(twl = subset(SSIN_875_transitions, (tFirst > as.POSIXct("2021-05-18 16:00", format = "%Y-%m-%d %H:%M") & tSecond < as.POSIXct("2021-05-26 16:00", format = "%Y-%m-%d %H:%M"))), known.coord=c(114.140,22.445), method = "gamma", plot = FALSE)  
+  
 ```
 
 
 #Function to estimate the locations for each individual
-This uses the elevation Pai calculated. We should confirm that this is correct, instead of recalculating for each bird
+This uses the elevation Pia calculated. We should confirm that this is correct, instead of recalculating for each bird
 ```{r}
 get_location <- function(file, individual) {
  locations <- coord(file$tFirst, file$tSecond, file$type, degElevation=-4.172)
@@ -153,13 +224,23 @@ get_location <- function(file, individual) {
  return(locations_df)
 }
 
+SSIN_867_locations <- get_location(SSIN_867_transitions_clip2, "872")
 SSIN_872_locations <- get_location(SSIN_872_transitions_clip2, "872")
 SSIN_874_locations <- get_location(SSIN_874_transitions_clip2, "874")
+SSIN_875_locations <- get_location(SSIN_875_transitions_clip2, "872")
 SSIN_876_locations <- get_location(SSIN_876_transitions_clip2, "876")
 SSIN_878_locations <- get_location(SSIN_878_transitions_clip2, "878")
 SSIN_880_locations <- get_location(SSIN_880_transitions_clip2, "880")
 SSIN_884_locations <- get_location(SSIN_884_transitions_clip2, "884")
 
+SSIN_867_locations2 <- get_location(SSIN_867_transitions, "867")
+SSIN_872_locations2 <- get_location(SSIN_872_transitions, "872")
+SSIN_874_locations2 <- get_location(SSIN_874_transitions, "874")
+SSIN_875_locations2 <- get_location(SSIN_875_transitions, "875")
+SSIN_876_locations2 <- get_location(SSIN_876_transitions, "876")
+SSIN_878_locations2 <- get_location(SSIN_878_transitions, "878")
+SSIN_880_locations2 <- get_location(SSIN_880_transitions, "880")
+SSIN_884_locations2 <- get_location(SSIN_884_transitions, "884")
 
 
 ```
@@ -181,8 +262,10 @@ rolling <- function(location_file) {
   return(rolling)
 }
 
+SSIN_867_rolling <- rolling(SSIN_867_locations)
 SSIN_872_rolling <- rolling(SSIN_872_locations)
 SSIN_874_rolling <- rolling(SSIN_874_locations)
+SSIN_875_rolling <- rolling(SSIN_875_locations)
 SSIN_876_rolling <- rolling(SSIN_876_locations)
 SSIN_878_rolling <- rolling(SSIN_878_locations)
 SSIN_880_rolling <- rolling(SSIN_880_locations)
@@ -198,12 +281,59 @@ equinox_graph <- ggplot() +
   geom_rect(aes(xmin = as.Date("2021-09-09", format = "%Y-%m-%d"), xmax = as.Date("2021-10-07", format = "%Y-%m-%d"), ymin = -Inf, ymax = Inf)) +
   geom_rect(aes(xmin = as.Date("2022-03-06", format = "%Y-%m-%d"), xmax = as.Date("2022-04-03", format = "%Y-%m-%d"), ymin = -Inf, ymax = Inf))
 
+equinox_graph + geom_line(data = SSIN_867_rolling, aes(x = Date, y = lon))
 equinox_graph + geom_line(data = SSIN_872_rolling, aes(x = Date, y = lon))
 equinox_graph + geom_line(data = SSIN_874_rolling, aes(x = Date, y = lon))
+equinox_graph + geom_line(data = SSIN_875_rolling, aes(x = Date, y = lon))
 equinox_graph + geom_line(data = SSIN_876_rolling, aes(x = Date, y = lon))
 equinox_graph + geom_line(data = SSIN_878_rolling, aes(x = Date, y = lon))
 equinox_graph + geom_line(data = SSIN_880_rolling, aes(x = Date, y = lon))
 equinox_graph + geom_line(data = SSIN_884_rolling, aes(x = Date, y = lon))
+
+```
+
+#Reaching clear estimates of migration dates, based on longitude
+```{r}
+equinox_graph + geom_line(data = SSIN_867_locations2, aes(x = Date, y = lon)) + scale_y_continuous(limits = c(100, 125))
+subset(SSIN_867_locations2, (Date >= as.Date("2021-09-14") & Date <= as.Date("2021-09-16")))
+subset(SSIN_867_locations2, (Date >= as.Date("2022-03-19") & Date <= as.Date("2022-03-21")))
+#Westward movement on 15 September, eastward movement on 20 March
+
+equinox_graph + geom_line(data = SSIN_872_locations2, aes(x = Date, y = lon)) + scale_y_continuous(limits = c(100, 125))
+subset(SSIN_872_locations2, (Date >= as.Date("2021-09-04") & Date <= as.Date("2021-09-07")))
+subset(SSIN_872_locations2, (Date >= as.Date("2022-03-17") & Date <= as.Date("2022-03-19")))
+#Eastward movement on 4 September, westward movement on 18 March
+
+equinox_graph + geom_line(data = SSIN_874_locations2, aes(x = Date, y = lon)) + scale_y_continuous(limits = c(100, 125))
+subset(SSIN_874_locations2, (Date >= as.Date("2021-09-01") & Date <= as.Date("2021-09-03")))
+subset(SSIN_874_locations2, (Date >= as.Date("2022-03-08") & Date <= as.Date("2022-03-10")))
+#Westward movement on 02 September, eastward movement on 09 March
+
+equinox_graph + geom_line(data = SSIN_875_locations2, aes(x = Date, y = lon)) + scale_y_continuous(limits = c(100, 125))
+subset(SSIN_875_locations2, (Date >= as.Date("2021-09-17") & Date <= as.Date("2021-09-19")))
+subset(SSIN_875_locations2, (Date >= as.Date("2022-03-23") & Date <= as.Date("2022-03-27")))
+#Westward movement on 18 September, eastward movement on 24-26 March
+
+equinox_graph + geom_line(data = SSIN_876_locations2, aes(x = Date, y = lon)) + scale_y_continuous(limits = c(100, 125))
+subset(SSIN_876_locations2, (Date >= as.Date("2021-09-17") & Date <= as.Date("2021-09-19")))
+subset(SSIN_876_locations2, (Date >= as.Date("2022-03-23") & Date <= as.Date("2022-03-26")))
+#Westward movement on 18 September, eastward movement on 24-25 March
+
+equinox_graph + geom_line(data = SSIN_878_locations2, aes(x = Date, y = lon)) + scale_y_continuous(limits = c(100, 125))
+subset(SSIN_878_locations2, (Date >= as.Date("2021-09-17") & Date <= as.Date("2021-09-20")))
+subset(SSIN_878_locations2, (Date >= as.Date("2022-04-09") & Date <= as.Date("2022-04-13")))
+#Westward movement on 18-19 September, eastward movement on 09-13 April
+
+equinox_graph + geom_line(data = SSIN_880_locations2, aes(x = Date, y = lon)) + scale_y_continuous(limits = c(100, 125))
+subset(SSIN_880_locations2, (Date >= as.Date("2021-09-03") & Date <= as.Date("2021-09-11")))
+subset(SSIN_880_locations2, (Date >= as.Date("2022-03-24") & Date <= as.Date("2022-03-26")))
+#Westward movement on 04-10 September, eastward movement on 25 March
+
+equinox_graph + geom_line(data = SSIN_884_locations2, aes(x = Date, y = lon)) + scale_y_continuous(limits = c(100, 125))
+subset(SSIN_884_locations2, (Date >= as.Date("2021-09-02") & Date <= as.Date("2021-09-06")))
+subset(SSIN_884_locations2, (Date >= as.Date("2022-03-21") & Date <= as.Date("2022-03-26")))
+#Westward movement on 03-06 September, eastward movement on 22-25 March
+
 
 ```
 
@@ -222,12 +352,14 @@ background_map
 #Creates a map with all birds, showing data points between the two equinox periods
 ```{r}
 background_map +
-  geom_point(data=subset(SSIN_872_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="878"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_874_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="872"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_876_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="874"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_878_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="884"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_867_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="867"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_872_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="872"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_874_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="874"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_875_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="875"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_876_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="876"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_878_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="878"), size=1, shape=20)+
   geom_point(data=subset(SSIN_880_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="880"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_884_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="876"), size=1, shape=20)
+  geom_point(data=subset(SSIN_884_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="884"), size=1, shape=20)
 
 str(SSIN_878_rolling)
 ```
@@ -235,12 +367,14 @@ str(SSIN_878_rolling)
 #Creates a map with all birds showing an ellipse for the period January-February (mid-winter range)
 ```{r}
 background_map +
-  stat_ellipse(data=subset(SSIN_872_rolling, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="878"), size=1, shape=20)+
-  stat_ellipse(data=subset(SSIN_874_rolling, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="872"), size=1, shape=20)+
-  stat_ellipse(data=subset(SSIN_876_rolling, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="874"), size=1, shape=20)+
-  stat_ellipse(data=subset(SSIN_878_rolling, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="884"), size=1, shape=20)+
+  stat_ellipse(data=subset(SSIN_867_rolling, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="867"), size=1, shape=20)+
+  stat_ellipse(data=subset(SSIN_872_rolling, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="872"), size=1, shape=20)+
+  stat_ellipse(data=subset(SSIN_874_rolling, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="874"), size=1, shape=20)+
+  stat_ellipse(data=subset(SSIN_875_rolling, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="875"), size=1, shape=20)+
+  stat_ellipse(data=subset(SSIN_876_rolling, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="876"), size=1, shape=20)+
+  stat_ellipse(data=subset(SSIN_878_rolling, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="878"), size=1, shape=20)+
   stat_ellipse(data=subset(SSIN_880_rolling, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="880"), size=1, shape=20)+
-  stat_ellipse(data=subset(SSIN_884_rolling, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="876"), size=1, shape=20)
+  stat_ellipse(data=subset(SSIN_884_rolling, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="884"), size=1, shape=20)
 
 ```
 
