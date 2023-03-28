@@ -5,6 +5,7 @@ output: html_notebook
 
 #Load required packages
 ```{r}
+
 library(GeoLight)
 library(raster)
 library(rnaturalearth)
@@ -56,12 +57,20 @@ SSIN_880_transitions<- twilightCalc(SSIN_880$datetime, SSIN_880$light, LightThre
 SSIN_884_transitions<- twilightCalc(SSIN_884$datetime, SSIN_884$light, LightThreshold=5,ask=TRUE)
 
 
+subset(SSIN_875_transitions, tFirst > as.POSIXct("2021-05-22") & tFirst < as.POSIXct("2021-05-25"))
+SSIN_875_transitions <- SSIN_875_transitions[-c(13:15),]
+SSIN_875_transitions <- SSIN_875_transitions[-c(31:32),]
+SSIN_875_transitions <- SSIN_875_transitions[-c(317:319),]
 SSIN_875_transitions <- SSIN_875_transitions[-c(709:716),] #This removes records at the end when the tag malfunctioned
 
-subset(SSIN_867_transitions, tFirst > as.POSIXct("2021-07-23", format = "%Y-%m-%d") & tSecond < as.POSIXct("2021-07-26", format = "%Y-%m-%d"))
+subset(SSIN_867_transitions, tFirst > as.POSIXct("2021-07-22") & tFirst < as.POSIXct("2021-07-26"))
+SSIN_867_transitions <- SSIN_867_transitions[-c(127:129),]
+SSIN_867_transitions <- SSIN_867_transitions[-c(209:211),]
 
 write.csv(SSIN_867_transitions, "SSIN_867_transitions.csv")
 write.csv(SSIN_875_transitions, "SSIN_875_transitions.csv")
+
+
 
 ```
 
@@ -155,92 +164,56 @@ SSIN_884_transitions_clipb <-
 ```
 
 
-# calculate the sun elevation angle. I used SSIN 880 because it is the one that worked the best.
-#The first equation here is the equation that Pia has used:
-the calibration days do not seem to work very well with the model, and so I estimated the time where the bird would be at the site at the end of the season. 
-#The two functions are something John's written to calculate sun elevation based on the calibration periods at the start and the end.
-#THESE TWO APPROACHES GIVE DIFFERENT RESULTS. WE NEED TO WORK OUT WHICH IS BEST!
+#This function calculates the sun elevation corresponding to the light level used to estimate sunrise and sunset times. 
+The function allows us to calculate separately for each individual, in case of differences between tags. I am calibrating for each individual from the date of tagging until 7 July, assuming that all birds would remain on breeding grounds until this date (when nesting season is still underway)
+Trying to fit this to the targeted calibration period or a shorter period (eg 2-3 weeks) seems to result in lower accuracy, and locations estimated in the South China Sea
 ```{r}
-SunElev880<-getElevation(tFirst=SSIN_880_transitions[613:730,1],
-                         tSecond = SSIN_880_transitions[613:730,2],
-                         type = SSIN_880_transitions[613:730,3],
-                         known.coord=c(114.07,22.5),
-                         plot=TRUE, method="gamma")
-?getElevation
-tail(SSIN_872_transitions)
-SSIN_872_transitions[1:14,]
 
-calibrate <- function(file, start1, end1, start2, end2) {
-  subset <- subset(file, (tFirst > as.POSIXct(start1, format = "%Y-%m-%d %H:%M") & tSecond < as.POSIXct(end1, format = "%Y-%m-%d %H:%M")) | (tFirst > as.POSIXct(start2, format = "%Y-%m-%d %H:%M") & tSecond < as.POSIXct(end2, format = "%Y-%m-%d %H:%M")))
-  calib <- getElevation(tFirst = subset[,1],
-                         tSecond = subset[,2],
-                         type = subset[,3],
-                         known.coord=c(114.140,22.445),
-                         plot=TRUE, method="gamma")
-  return(calib)
-}
-
-calibrate <- function(file, start1, end1) {
-  subset <- subset(file, (tFirst > as.POSIXct(start1, format = "%Y-%m-%d %H:%M") & tSecond < as.POSIXct(end1, format = "%Y-%m-%d %H:%M")))
-  calib <- getElevation(tFirst = subset[,1],
-                         tSecond = subset[,2],
-                         type = subset[,3],
-                         known.coord=c(114.140,22.445),
-                         plot=TRUE, method="gamma")
-  return(calib)
-}
-
-
-SunElev872 <- calibrate(SSIN_872_transitions, "2021-05-30 16:00", "2021-06-07 16:00", "2022-05-06 16:00", "2022-05-10 16:00")
-SunElev872 <- calibrate(SSIN_872_transitions[-c(6,7),], "2021-05-30 16:00", "2021-06-07 16:00")
-str(SunElev872)
-
-SunElev875 <- calibrate(SSIN_875_transitions, "2021-05-18 16:00", "2021-05-26 16:00")
-str(SunElev872)
-
-  subset <- subset(SSIN_875_transitions, (tFirst > as.POSIXct("2021-05-18 16:00", format = "%Y-%m-%d %H:%M") & tSecond < as.POSIXct("2021-05-26 16:00", format = "%Y-%m-%d %H:%M")))
-  calib <- getElevation(tFirst = subset[,1],
-                         tSecond = subset[,2],
-                         type = subset[,3],
-                         known.coord=c(114.140,22.445),
-                         plot=TRUE, method="gamma")
-
-
-getElevation(twl = subset(SSIN_875_transitions, (tFirst > as.POSIXct("2021-05-18 16:00", format = "%Y-%m-%d %H:%M") & tSecond < as.POSIXct("2021-05-26 16:00", format = "%Y-%m-%d %H:%M"))), known.coord=c(114.140,22.445), method = "gamma", plot = FALSE)  
+calibration <- function(file, tag_date) {
+  start_date <- as.POSIXct(tag_date, format = "%Y-%m-%d") +(24*3600)
+  calibration_date <- as.POSIXct("2021-07-07", format = "%Y-%m-%d")
+  extract <- subset(file, tFirst > start_date & tSecond <= calibration_date)
+  elevation <- getElevation(twl = extract, known.coord = c(114.07, 22.5), plot = TRUE, method = "gamma")
   
+  return(elevation)
+}
+
+elevation_867 <- calibration(SSIN_867_transitions, "2021-06-01")
+elevation_872 <- calibration(SSIN_872_transitions, "2021-06-08")
+elevation_874 <- calibration(SSIN_874_transitions, "2021-05-27")
+elevation_875 <- calibration(SSIN_875_transitions, "2021-05-27")
+elevation_876 <- calibration(SSIN_876_transitions, "2021-05-27")
+elevation_878 <- calibration(SSIN_878_transitions, "2021-05-20")
+elevation_880 <- calibration(SSIN_880_transitions, "2021-06-08")
+elevation_884 <- calibration(SSIN_884_transitions, "2021-06-08")
+
+
+
+
 ```
 
 
 #Function to estimate the locations for each individual
-This uses the elevation Pia calculated. We should confirm that this is correct, instead of recalculating for each bird
+The elevations I have used here are the median values calculated above (using data from the date of tagging until 7 July, assuming birds remain on breeding grounds until this date)
 ```{r}
-get_location <- function(file, individual) {
- locations <- coord(file$tFirst, file$tSecond, file$type, degElevation=-4.172)
+get_location <- function(transitions_file, elevation, individual) {
+ locations <- coord(transitions_file$tFirst, transitions_file$tSecond, transitions_file$type, degElevation=elevation)
  locations_df <- as.data.frame(locations)
- locations_df$Date <- as.Date.POSIXct(file$tFirst)
+ locations_df$Date <- as.Date.POSIXct(transitions_file$tFirst)
  locations_df$Individual <- individual
  locations_df <- locations_df[,c(4,3,1,2)]
    
  return(locations_df)
 }
 
-SSIN_867_locations <- get_location(SSIN_867_transitions_clip2, "872")
-SSIN_872_locations <- get_location(SSIN_872_transitions_clip2, "872")
-SSIN_874_locations <- get_location(SSIN_874_transitions_clip2, "874")
-SSIN_875_locations <- get_location(SSIN_875_transitions_clip2, "872")
-SSIN_876_locations <- get_location(SSIN_876_transitions_clip2, "876")
-SSIN_878_locations <- get_location(SSIN_878_transitions_clip2, "878")
-SSIN_880_locations <- get_location(SSIN_880_transitions_clip2, "880")
-SSIN_884_locations <- get_location(SSIN_884_transitions_clip2, "884")
-
-SSIN_867_locations2 <- get_location(SSIN_867_transitions, "867")
-SSIN_872_locations2 <- get_location(SSIN_872_transitions, "872")
-SSIN_874_locations2 <- get_location(SSIN_874_transitions, "874")
-SSIN_875_locations2 <- get_location(SSIN_875_transitions, "875")
-SSIN_876_locations2 <- get_location(SSIN_876_transitions, "876")
-SSIN_878_locations2 <- get_location(SSIN_878_transitions, "878")
-SSIN_880_locations2 <- get_location(SSIN_880_transitions, "880")
-SSIN_884_locations2 <- get_location(SSIN_884_transitions, "884")
+SSIN_867_locations2 <- get_location(SSIN_867_transitions, c(-5.123), "867")
+SSIN_872_locations2 <- get_location(SSIN_872_transitions, c(-4.006), "872")
+SSIN_874_locations2 <- get_location(SSIN_874_transitions, c(-4.555), "874")
+SSIN_875_locations2 <- get_location(SSIN_875_transitions, c(-4.81), "875")
+SSIN_876_locations2 <- get_location(SSIN_876_transitions, c(-4.96), "876")
+SSIN_878_locations2 <- get_location(SSIN_878_transitions, c(-4.662), "878")
+SSIN_880_locations2 <- get_location(SSIN_880_transitions, c(-4.939), "880")
+SSIN_884_locations2 <- get_location(SSIN_884_transitions, c(-3.954), "884")
 
 
 ```
@@ -293,6 +266,7 @@ equinox_graph + geom_line(data = SSIN_884_rolling, aes(x = Date, y = lon))
 ```
 
 #Reaching clear estimates of migration dates, based on longitude
+Includes data within the equinox periods 
 ```{r}
 equinox_graph + geom_line(data = SSIN_867_locations2, aes(x = Date, y = lon)) + scale_y_continuous(limits = c(100, 125))
 subset(SSIN_867_locations2, (Date >= as.Date("2021-09-14") & Date <= as.Date("2021-09-16")))
@@ -361,20 +335,24 @@ background_map +
   geom_point(data=subset(SSIN_880_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="880"), size=1, shape=20)+
   geom_point(data=subset(SSIN_884_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="884"), size=1, shape=20)
 
+
+background_map +
+  geom_point(data=subset(SSIN_867_locations2, Date > "2021-05-10" & Date < "2022-09-01"), aes(x=lon, y=lat,colour="867"), size=1, shape=20)
+
 str(SSIN_878_rolling)
 ```
 
 #Creates a map with all birds showing an ellipse for the period January-February (mid-winter range)
 ```{r}
 background_map +
-  stat_ellipse(data=subset(SSIN_867_rolling, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="867"), size=1, shape=20)+
-  stat_ellipse(data=subset(SSIN_872_rolling, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="872"), size=1, shape=20)+
-  stat_ellipse(data=subset(SSIN_874_rolling, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="874"), size=1, shape=20)+
-  stat_ellipse(data=subset(SSIN_875_rolling, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="875"), size=1, shape=20)+
-  stat_ellipse(data=subset(SSIN_876_rolling, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="876"), size=1, shape=20)+
-  stat_ellipse(data=subset(SSIN_878_rolling, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="878"), size=1, shape=20)+
-  stat_ellipse(data=subset(SSIN_880_rolling, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="880"), size=1, shape=20)+
-  stat_ellipse(data=subset(SSIN_884_rolling, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="884"), size=1, shape=20)
+  stat_ellipse(data=subset(SSIN_867_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="867"), size=1, shape=20)+
+  stat_ellipse(data=subset(SSIN_872_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="872"), size=1, shape=20)+
+  stat_ellipse(data=subset(SSIN_874_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="874"), size=1, shape=20)+
+  stat_ellipse(data=subset(SSIN_875_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="875"), size=1, shape=20)+
+  stat_ellipse(data=subset(SSIN_876_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="876"), size=1, shape=20)+
+  stat_ellipse(data=subset(SSIN_878_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="878"), size=1, shape=20)+
+  stat_ellipse(data=subset(SSIN_880_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="880"), size=1, shape=20)+
+  stat_ellipse(data=subset(SSIN_884_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="884"), size=1, shape=20)
 
 ```
 
@@ -388,13 +366,13 @@ date_ellipse <- function(file, start_date, end_date) {
 }  
 
 background_map +
-  date_ellipse(SSIN_874_rolling, "2021-09-01", "2021-09-30") +
-  date_ellipse(SSIN_874_rolling, "2021-10-01", "2021-10-31") +
-  date_ellipse(SSIN_874_rolling, "2021-11-01", "2021-11-30") +
-  date_ellipse(SSIN_874_rolling, "2021-12-01", "2021-12-31") +
-  date_ellipse(SSIN_874_rolling, "2022-01-01", "2022-01-31") +
-  date_ellipse(SSIN_874_rolling, "2022-02-01", "2022-02-28") +
-  date_ellipse(SSIN_874_rolling, "2022-03-01", "2022-03-31")
+  date_ellipse(SSIN_884_locations2, "2021-09-01", "2021-09-30") +
+  date_ellipse(SSIN_884_locations2, "2021-10-01", "2021-10-31") +
+  date_ellipse(SSIN_884_locations2, "2021-11-01", "2021-11-30") +
+  date_ellipse(SSIN_884_locations2, "2021-12-01", "2021-12-31") +
+  date_ellipse(SSIN_884_locations2, "2022-01-01", "2022-01-31") +
+  date_ellipse(SSIN_884_locations2, "2022-02-01", "2022-02-28") +
+  date_ellipse(SSIN_884_locations2, "2022-03-01", "2022-03-31")
 
 
 ```
