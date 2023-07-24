@@ -14,25 +14,20 @@ library(devtools)
 library(usethis)
 
 #For analysis of geolocator data
-devtools::install_github("SLisovski/TwGeos")
+devtools::install_github("SLisovski/GeoLocTools")
+library(GeoLocTools)
+
+#I think these are automatically installed with GeoLocTools (above)
+devtools::install_github("SLisovski/GeoLight")
 library(GeoLight)
 library(BAStag)
 library(SGAT)
+devtools::install_github("SLisovski/TwGeos")
 library(TwGeos)
 devtools::install_github("benjamin-merkel/probGLS")
 library(probGLS)
 
-#For mapping
-library(raster)
-library(rnaturalearth)
-
-library(processx)
-library(zoo)
-
-#For kernel creation
-library(adehabitatHR)
-
-
+setupGeolocation()
 ```
 
 
@@ -47,6 +42,9 @@ SSIN_876 <- luxTrans("CB876_05Jun22_224306driftadj.lux")
 SSIN_867 <- luxTrans("CB867_15Jul22_054342driftadj.lux")
 SSIN_875 <- luxTrans("CB875_21Sep22_185524.lux")
 
+str(SSIN_867)
+
+#It looks like this shouldn't be needed, as the files are automatically in POSIXct format when imported above
 SSIN_872$datetime <- as.POSIXct(strptime(SSIN_872$datetime, format = "%Y-%m-%d %H:%M:%S", tz = "GMT"))
 SSIN_878$datetime <- as.POSIXct(strptime(SSIN_878$datetime, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
 SSIN_874$datetime <- as.POSIXct(strptime(SSIN_874$datetime, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
@@ -55,7 +53,6 @@ SSIN_880$datetime <- as.POSIXct(strptime(SSIN_880$datetime, format = "%Y-%m-%d %
 SSIN_876$datetime <- as.POSIXct(strptime(SSIN_876$datetime, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
 SSIN_867$datetime <- as.POSIXct(strptime(SSIN_867$datetime, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
 SSIN_875$datetime <- as.POSIXct(strptime(SSIN_875$datetime, format = "%Y-%m-%d %H:%M:%S",  tz = "GMT"))
-
 
 ```
 
@@ -91,7 +88,7 @@ write.csv(SSIN_875_transitions, "SSIN_875_transitions.csv")
 
 ```{r}
 # set threshold #
-threshold <- 1
+threshold <- 2.5
 # Create a list to hold the transition data #
 twl<-vector('list',length(SSIN_867))
 
@@ -118,8 +115,8 @@ twl<-vector('list',length(SSIN_867))
 # Step 4) Editing transitions - this is not discussed here - we will take all the ones that were found
 # IMPORTANT - press "q" to save the data to R 
 
-for(i in 1:length(SSIN_867)){
-twl[[i]] <- preprocessLight(SSIN_867[[i]], threshold, offset = offset, zlim = c(0, 12))
+for(i in 1:length(twl)){
+twl[[i]] <- preprocessLight(twl[[i]], threshold, offset = offset, zlim = c(0, 12))
 }
 preprocessLight(SSIN_867, threshold, offset = offset, zlim = c(0, 12))
 
@@ -482,411 +479,11 @@ str(SSIN_867_transitions)
 
 
 
-#Creates a map with all birds, showing data points between the two equinox periods
-```{r}
-background_map +
-  geom_point(data=subset(SSIN_867_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="867"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_872_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="872"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_874_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="874"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_875_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="875"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_876_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="876"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_878_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="878"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_880_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="880"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_884_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="884"), size=1, shape=20)
-
-background_map +
-  geom_point(data=subset(SSIN_867_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon5day, y=lat5day,colour="867"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_872_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon5day, y=lat5day,colour="872"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_874_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon5day, y=lat5day,colour="874"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_875_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon5day, y=lat5day,colour="875"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_876_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon5day, y=lat5day,colour="876"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_878_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon5day, y=lat5day,colour="878"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_880_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon5day, y=lat5day,colour="880"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_884_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon5day, y=lat5day,colour="884"), size=1, shape=20)
-
-background_map +
-  geom_point(data=subset(SSIN_884_rolling, Date > "2021-06-01" & Date < "2021-06-30"), aes(x=lon3day, y=lat3day,colour="884"), size=1, shape=20)
-background_map +
-  geom_point(data=subset(SSIN_884_rolling, Date > "2021-07-01" & Date < "2021-07-31"), aes(x=lon3day, y=lat3day,colour="884"), size=1, shape=20)
-background_map +
-  geom_point(data=subset(SSIN_884_rolling, Date > "2021-08-01" & Date < "2021-08-31"), aes(x=lon3day, y=lat3day,colour="884"), size=1, shape=20)
-background_map +
-  geom_point(data=subset(SSIN_884_rolling, Date > "2021-09-01" & Date < "2021-09-30"), aes(x=lon3day, y=lat3day,colour="884"), size=1, shape=20)
-background_map +
-  geom_point(data=subset(SSIN_884_rolling, Date > "2021-10-01" & Date < "2021-10-31"), aes(x=lon3day, y=lat3day,colour="884"), size=1, shape=20)
-background_map +
-  geom_point(data=subset(SSIN_884_rolling, Date > "2021-11-01" & Date < "2021-11-30"), aes(x=lon3day, y=lat3day,colour="884"), size=1, shape=20)
-background_map +
-  geom_point(data=subset(SSIN_884_rolling, Date > "2021-12-01" & Date < "2021-12-31"), aes(x=lon3day, y=lat3day,colour="884"), size=1, shape=20)
-background_map +
-  geom_point(data=subset(SSIN_884_rolling, Date > "2022-01-01" & Date < "2022-01-31"), aes(x=lon3day, y=lat3day,colour="884"), size=1, shape=20)
-background_map +
-  geom_point(data=subset(SSIN_884_rolling, Date > "2022-02-01" & Date < "2022-02-28"), aes(x=lon3day, y=lat3day,colour="884"), size=1, shape=20)
-background_map +
-  geom_point(data=subset(SSIN_884_rolling, Date > "2022-03-01" & Date < "2022-03-31"), aes(x=lon3day, y=lat3day,colour="884"), size=1, shape=20)
-background_map +
-  geom_point(data=subset(SSIN_884_rolling, Date > "2022-04-01" & Date < "2022-04-30"), aes(x=lon3day, y=lat3day,colour="884"), size=1, shape=20)
-background_map +
-  geom_point(data=subset(SSIN_884_rolling, Date > "2022-05-01" & Date < "2022-05-31"), aes(x=lon3day, y=lat3day,colour="884"), size=1, shape=20)
-
-str(SSIN_878_rolling)
-```
-
-#Creates a map with all birds showing an ellipse for the period December-January (mid-winter range)
-```{r}
-background_map +
-  stat_ellipse(data=subset(SSIN_867_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="867"), size=1, shape=20)+
-  stat_ellipse(data=subset(SSIN_872_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="872"), size=1, shape=20)+
-  stat_ellipse(data=subset(SSIN_874_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="874"), size=1, shape=20)+
-  stat_ellipse(data=subset(SSIN_875_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="875"), size=1, shape=20)+
-  stat_ellipse(data=subset(SSIN_876_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="876"), size=1, shape=20)+
-  stat_ellipse(data=subset(SSIN_878_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="878"), size=1, shape=20)+
-  stat_ellipse(data=subset(SSIN_880_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="880"), size=1, shape=20)+
-  stat_ellipse(data=subset(SSIN_884_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="884"), size=1, shape=20)
-
-
-background_map +
-  geom_point(data=subset(SSIN_867_locations3, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="867"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_872_locations3, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="872"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_874_locations3, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="874"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_875_locations3, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="875"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_876_locations3, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="876"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_878_locations3, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="878"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_880_locations3, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="880"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_884_locations3, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="884"), size=1, shape=20)
-
-background_map +
-  geom_point(data=subset(SSIN_867_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="867"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_872_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="872"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_874_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="874"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_875_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="875"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_876_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="876"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_878_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="878"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_880_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="880"), size=1, shape=20)+
-  geom_point(data=subset(SSIN_884_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="884"), size=1, shape=20)
-
-```
-
-
-#This draws the ellipse for each month for an individual. I need to adjust how to deal with aesthetics (currently all ellipses are the same colour!)
-```{r}
-date_ellipse <- function(file, start_date, end_date) {
-  date_ellipse <- stat_ellipse(data=subset(file, Date > start_date & Date < end_date), aes(x=lon, y=lat), size=1, shape=20)
-  
-  return(date_ellipse)
-}  
-
-background_map +
-  date_ellipse(SSIN_884_locations2, "2021-09-01", "2021-09-30") +
-  date_ellipse(SSIN_884_locations2, "2021-10-01", "2021-10-31") +
-  date_ellipse(SSIN_884_locations2, "2021-11-01", "2021-11-30") +
-  date_ellipse(SSIN_884_locations2, "2021-12-01", "2021-12-31") +
-  date_ellipse(SSIN_884_locations2, "2022-01-01", "2022-01-31") +
-  date_ellipse(SSIN_884_locations2, "2022-02-01", "2022-02-28") +
-  date_ellipse(SSIN_884_locations2, "2022-03-01", "2022-03-31")
-
-
-```
-
-
 ```{r}
 ssin <- rbind(SSIN_867_locations2, SSIN_872_locations2, SSIN_874_locations2, SSIN_875_locations2, SSIN_876_locations2, SSIN_878_locations2, SSIN_880_locations2, SSIN_884_locations)
 ssin$Individual <- as.factor(ssin$Individual)
 ssin <- na.omit(ssin) #remove the NAs
 coordinates(ssin) <- ~lon+lat # transform it into a SpatialPointsDataFrame to be able to assign a projection later
-
-```
-
-
-#Kernel estimate for entire population for entire season
-```{r}
-ssin.ud <- kernelUD(ssin, h="href", grid=500)
-
-#calculate the % home range
-ssin.ud95 <-getverticeshr(ssin.ud,percent=95)
-ssin.ud85 <-getverticeshr(ssin.ud,percent=85)
-ssin.ud75 <-getverticeshr(ssin.ud,percent=75)
-ssin.ud50 <-getverticeshr(ssin.ud,percent=50)
-ssin.ud25 <-getverticeshr(ssin.ud,percent=25)
-
-ssin.ud95 <- fortify(ssin.ud95)
-ssin.ud85 <- fortify(ssin.ud85)
-ssin.ud75 <- fortify(ssin.ud75)
-ssin.ud50 <- fortify(ssin.ud50)
-ssin.ud25 <- fortify(ssin.ud25)
-
-##### group the polygons together to map them on one ggplot
-
-#add a column to ID
-ssin.ud95 <-cbind(ID=95,ssin.ud95)
-ssin.ud75 <-cbind(ID=75,ssin.ud75)
-ssin.ud50 <-cbind(ID=50,ssin.ud50)
-ssin.ud25 <-cbind(ID=25,ssin.ud25)
-
-#the $piece must be renamed to separate the polygons and avoid tearing when plotting
-
-ssin.ud95 <- dplyr::mutate(ssin.ud95, piece=ifelse(piece==1, "1", piece),
-                                piece=ifelse(piece==2, "2", piece))
-
-ssin.ud75 <- dplyr::mutate(ssin.ud75, piece=ifelse(piece==1, "3", piece),
-                                piece=ifelse(piece==2, "4", piece))
-
-ssin.ud50 <- dplyr::mutate(ssin.ud50, piece=ifelse(piece==1, "5", piece),
-                                piece=ifelse(piece==2, "6", piece))
-
-ssin.ud25 <- dplyr::mutate(ssin.ud25, piece=ifelse(piece==1, "7", piece),
-                           piece=ifelse(piece==2, "8", piece))
-
-#merge them all together
-ssin.all.kde <- rbind(ssin.ud25,ssin.ud50,ssin.ud75)
-
-
-ggplot() + 
-  geom_sf(data = worldmap, fill="grey30", lwd=0.1, projection=target_crs)+         #plots the world map
-  coord_sf(xlim=c(100,130), ylim=c(5,35))+                                         #crops the map to these coordinates
-  geom_polygon(data=ssin.all.kde,aes(x=long, y=lat, group=as.factor(piece), fill=as.factor(ID), alpha=0.1),colour="grey75",lwd=0.05)+       #the group= argument will prevent the polygons from tearing at the edges
-  scale_fill_brewer(palette="YlOrRd",name="", labels=c("25% UD", "50% UD", "75% UD"),direction=-1)+
-  geom_point(data=as.data.frame(lmc_site),aes(x=coords.x1, y=coords.x2),        #add the point of the site
-  fill="seagreen3",colour="black", shape=24, size=2.5)+
-  labs(x="", y="")+theme_bw()
-
-```
-
-#OK, I'm gonna try to set up a function and then try all that for one individual
-```{r}
-SSIN_kernel <- function(indiv, start_date, end_date) {
-  ssin.ud <- kernelUD(subset(ssin, Individual == indiv & Date >= start_date & Date <= end_date), h="href", grid=500)
-
-#calculate the % home range
-ssin.ud95 <-getverticeshr(ssin.ud,percent=95)
-ssin.ud75 <-getverticeshr(ssin.ud,percent=75)
-ssin.ud50 <-getverticeshr(ssin.ud,percent=50)
-ssin.ud25 <-getverticeshr(ssin.ud,percent=25)
-
-ssin.ud95 <- fortify(ssin.ud95)
-ssin.ud75 <- fortify(ssin.ud75)
-ssin.ud50 <- fortify(ssin.ud50)
-ssin.ud25 <- fortify(ssin.ud25)
-
-#add a column to ID
-ssin.ud95 <-cbind(ID=95,ssin.ud95)
-ssin.ud75 <-cbind(ID=75,ssin.ud75)
-ssin.ud50 <-cbind(ID=50,ssin.ud50)
-ssin.ud25 <-cbind(ID=25,ssin.ud25)
-
-#the $piece must be renamed to separate the polygons and avoid tearing when plotting
-
-ssin.ud95 <- dplyr::mutate(ssin.ud95, piece=ifelse(piece==1, "1", piece),
-                                piece=ifelse(piece==2, "2", piece))
-
-ssin.ud75 <- dplyr::mutate(ssin.ud75, piece=ifelse(piece==1, "3", piece),
-                                piece=ifelse(piece==2, "4", piece))
-
-ssin.ud50 <- dplyr::mutate(ssin.ud50, piece=ifelse(piece==1, "5", piece),
-                                piece=ifelse(piece==2, "6", piece))
-
-ssin.ud25 <- dplyr::mutate(ssin.ud25, piece=ifelse(piece==1, "7", piece),
-                           piece=ifelse(piece==2, "8", piece))
-
-#merge them all together
-ssin.all.kde <- rbind(ssin.ud25, ssin.ud50, ssin.ud75, ssin.ud95)
-
-return(ssin.all.kde)
-}
-
-SSIN867_kernel <- SSIN_kernel("867", "2021-11-01", "2022-02-28")
-SSIN872_kernel <- SSIN_kernel("872", "2021-11-01", "2022-02-28")
-SSIN874_kernel <- SSIN_kernel("874", "2021-11-01", "2022-02-28")
-SSIN875_kernel <- SSIN_kernel("875", "2021-11-01", "2022-02-28")
-SSIN876_kernel <- SSIN_kernel("876", "2021-11-01", "2022-02-28")
-SSIN878_kernel <- SSIN_kernel("878", "2021-11-01", "2022-02-28")
-SSIN880_kernel <- SSIN_kernel("880", "2021-11-01", "2022-02-28")
-SSIN884_kernel <- SSIN_kernel("884", "2021-11-01", "2022-02-28")
-
-kernel_map <- function(file) {
-  ggplot() + 
-  geom_sf(data = worldmap, fill="grey30", lwd=0.1, projection=target_crs) +
-  coord_sf(xlim = c(100,130), ylim = c(5,35)) +
-  geom_polygon(data = file, aes(x=long, y=lat, group=as.factor(piece), fill=as.factor(ID), alpha=0.1), colour="grey75", lwd=0.05)+ 
-  scale_fill_brewer(palette="YlOrRd",name="", labels=c("25% UD", "50% UD", "75% UD", "95% UD"), direction=-1)
-}
-  
-kernel_map(SSIN867_kernel)
-kernel_map(SSIN872_kernel)
-kernel_map(SSIN874_kernel)
-kernel_map(SSIN875_kernel)
-kernel_map(SSIN876_kernel)
-kernel_map(SSIN878_kernel)
-kernel_map(SSIN880_kernel)
-kernel_map(SSIN884_kernel)
-
-
-```
-
-
-```{r}
-SSIN_kernel_pc <- function(indiv, start_date, end_date, percent) {
-  ssin.ud <- kernelUD(subset(allbirds, Individual == indiv & Date >= start_date & Date <= end_date), h="href", grid=500)
-
-#calculate the % home range
-ssin.ud_pc <-getverticeshr(ssin.ud,percent=percent)
-ssin.ud_pc <- fortify(ssin.ud_pc)
-
-return(ssin.ud_pc)
-}
-
-SSIN867_kernel25 <- SSIN_kernel_pc("867", "2021-11-01", "2022-02-28", c(25))
-SSIN872_kernel25 <- SSIN_kernel_pc("872", "2021-11-01", "2022-02-28", c(25))
-SSIN874_kernel25 <- SSIN_kernel_pc("874", "2021-11-01", "2022-02-28", c(25))
-SSIN875_kernel25 <- SSIN_kernel_pc("875", "2021-11-01", "2022-02-28", c(25))
-SSIN876_kernel25 <- SSIN_kernel_pc("876", "2021-11-01", "2022-02-28", c(25))
-SSIN878_kernel25 <- SSIN_kernel_pc("878", "2021-11-01", "2022-02-28", c(25))
-SSIN880_kernel25 <- SSIN_kernel_pc("880", "2021-11-01", "2022-02-28", c(25))
-SSIN884_kernel25 <- SSIN_kernel_pc("884", "2021-11-01", "2022-02-28", c(25))
-
-kernel_map_pc <- function(file, colour) {
-  ggplot() + 
-  geom_sf(data = worldmap, fill="grey30", lwd=0.1, projection=target_crs) +
-  coord_sf(xlim = c(100,130), ylim = c(5,35)) +
-  geom_polygon(data = file, aes(x=long, y=lat), fill = NA, colour = colour)
-  
-}
-  
-ggplot() + 
-  geom_sf(data = worldmap, fill="grey30", lwd=0.1, projection=target_crs) +
-  coord_sf(xlim = c(100,130), ylim = c(5,35)) +
-  geom_polygon(data = SSIN867_kernel25, aes(x=long, y=lat), fill = NA, colour = "red") +
-  geom_polygon(data = SSIN872_kernel25, aes(x=long, y=lat), fill = NA, colour = "green") +
-  geom_polygon(data = SSIN874_kernel25, aes(x=long, y=lat), fill = NA, colour = "blue") +
-  geom_polygon(data = SSIN875_kernel25, aes(x=long, y=lat), fill = NA, colour = "yellow") +
-  geom_polygon(data = SSIN876_kernel25, aes(x=long, y=lat), fill = NA, colour = "orange") +
-  geom_polygon(data = SSIN878_kernel25, aes(x=long, y=lat), fill = NA, colour = "lightblue") +
-  geom_polygon(data = SSIN880_kernel25, aes(x=long, y=lat), fill = NA, colour = "darkgreen") +
-  geom_polygon(data = SSIN884_kernel25, aes(x=long, y=lat), fill = NA, colour = "darkblue")
-  
-
-kernel_map_pc(SSIN878_kernel25)
-kernel_map_pc(SSIN880_kernel25)
-kernel_map_pc(SSIN884_kernel25)
-
-```
-
-#Draws monthly kernel for each individual, all months on a single plot
-```{r}
-SSIN_monthlykernel <- function(individual) {
-jun25 <- SSIN_kernel_pc(individual, "2021-06-01", "2021-06-30", c(25))
-jul25 <- SSIN_kernel_pc(individual, "2021-07-01", "2021-07-31", c(25))
-aug25 <- SSIN_kernel_pc(individual, "2021-08-01", "2021-08-31", c(25))
-sep25 <- SSIN_kernel_pc(individual, "2021-09-01", "2021-09-30", c(25))
-oct25 <- SSIN_kernel_pc(individual, "2021-10-01", "2021-10-31", c(25))
-nov25 <- SSIN_kernel_pc(individual, "2021-11-01", "2021-11-30", c(25))
-dec25 <- SSIN_kernel_pc(individual, "2021-12-01", "2021-12-31", c(25))
-jan25 <- SSIN_kernel_pc(individual, "2022-01-01", "2022-01-31", c(25))
-feb25 <- SSIN_kernel_pc(individual, "2022-02-01", "2022-02-28", c(25))
-mar25 <- SSIN_kernel_pc(individual, "2022-03-01", "2022-03-31", c(25))
-apr25 <- SSIN_kernel_pc(individual, "2022-04-01", "2022-04-30", c(25))
-
-jun25$month <- "June"
-jul25$month <- "July"
-aug25$month <- "August"
-sep25$month <- "September"
-oct25$month <- "October"
-nov25$month <- "November"
-dec25$month <- "December"
-jan25$month <- "January"
-feb25$month <- "February"
-mar25$month <- "March"
-apr25$month <- "April"
-
-allmonths <- rbind(jun25, jul25, aug25, sep25, oct25, nov25, dec25, jan25, feb25, mar25, apr25)
-
-plot <- ggplot() + 
-  geom_sf(data = worldmap, fill="grey30", lwd=0.1, projection=target_crs) +
-  coord_sf(xlim = c(100,130), ylim = c(5,35)) +
-  geom_polygon(data = allmonths, aes(x=long, y=lat, colour = month), fill = NA) +
-  scale_colour_manual(values=c("darkred", "red", "orange", "darkred", "red", "orange", "yellow", "green", "lightblue", "blue", "darkblue"), breaks=c("June", "July", "August", "September", "October", "November", "December", "January", "February", "March", "April"))
-
-  return(plot)
-}
-
-
-SSIN_monthlykernel_winter <- function(individual) {
-nov25 <- SSIN_kernel_pc(individual, "2021-11-01", "2021-11-30", c(25))
-dec25 <- SSIN_kernel_pc(individual, "2021-12-01", "2021-12-31", c(25))
-jan25 <- SSIN_kernel_pc(individual, "2022-01-01", "2022-01-31", c(25))
-feb25 <- SSIN_kernel_pc(individual, "2022-02-01", "2022-02-28", c(25))
-
-nov25$month <- "November"
-dec25$month <- "December"
-jan25$month <- "January"
-feb25$month <- "February"
-
-allmonths <- rbind(nov25, dec25, jan25, feb25)
-
-plot <- ggplot() + 
-  geom_sf(data = worldmap, fill="grey30", lwd=0.1, projection=target_crs) +
-  coord_sf(xlim = c(100,130), ylim = c(5,35)) +
-  geom_polygon(data = allmonths, aes(x=long, y=lat, colour = month), fill = NA) +
-  scale_colour_manual(values=c("orange", "yellow", "green", "lightblue"), breaks=c("November", "December", "January", "February"))
-
-  return(plot)
-}
-
-SSIN_monthlykernel_winter("867")
-SSIN_monthlykernel_winter("872")
-SSIN_monthlykernel_winter("874")
-SSIN_monthlykernel_winter("875")
-SSIN_monthlykernel_winter("876")
-SSIN_monthlykernel_winter("878")
-SSIN_monthlykernel_winter("880")
-SSIN_monthlykernel_winter("884")
-
-
-
-plot <- ggplot() + 
-  geom_sf(data = worldmap, fill="grey30", lwd=0.1, projection=target_crs) +
-  coord_sf(xlim = c(100,130), ylim = c(5,35)) +
-  geom_polygon(data = allmonths, aes(x=long, y=lat, colour = month), fill = NA) +
-  scale_colour_manual(values=c("orange", "yellow", "green", "lightblue"), breaks=c("November", "December", "January", "February"))
-
-```
-
-```{r}
-SSIN_indivkernel <- function(start_date, end_date) {
-kernel867 <- SSIN_kernel_pc("867", start_date, end_date, c(25))
-kernel872 <- SSIN_kernel_pc("872", start_date, end_date, c(25))
-kernel874 <- SSIN_kernel_pc("874", start_date, end_date, c(25))
-kernel875 <- SSIN_kernel_pc("875", start_date, end_date, c(25))
-kernel876 <- SSIN_kernel_pc("876", start_date, end_date, c(25))
-kernel878 <- SSIN_kernel_pc("878", start_date, end_date, c(25))
-kernel880 <- SSIN_kernel_pc("880", start_date, end_date, c(25))
-kernel884 <- SSIN_kernel_pc("884", start_date, end_date, c(25))
-
-kernel867$indiv <- "867"
-kernel872$indiv <- "872"
-kernel874$indiv <- "874"
-kernel875$indiv <- "875"
-kernel876$indiv <- "876"
-kernel878$indiv <- "878"
-kernel880$indiv <- "880"
-kernel884$indiv <- "884"
-
-allbirds <- rbind(kernel867, kernel872, kernel874, kernel875, kernel876, kernel878, kernel880, kernel884)
-
-plot <- ggplot() + 
-  geom_sf(data = worldmap, fill="grey30", lwd=0.1, projection=target_crs) +
-  coord_sf(xlim = c(100,130), ylim = c(5,35)) +
-  geom_polygon(data = allbirds, aes(x=long, y=lat, colour = indiv), fill = NA) 
-
-  return(plot)
-}
-
-SSIN_indivkernel("2021-11-01", "2021-11-30")
-SSIN_indivkernel("2021-12-01", "2021-12-31")
-SSIN_indivkernel("2022-01-01", "2022-01-31")
-SSIN_indivkernel("2022-02-01", "2022-02-28")
-SSIN_indivkernel("2022-03-01", "2022-03-31")
-SSIN_indivkernel("2021-12-01", "2022-01-31")
 
 ```
 
