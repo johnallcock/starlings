@@ -1,0 +1,136 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+#For mapping
+library(raster)
+library(rnaturalearth)
+
+library(processx)
+library(zoo)
+
+```
+
+
+#Sets up a background map cropped to approriate area to use for creating maps
+```{r}
+worldmap <- rnaturalearth::ne_countries(scale="medium", returnclass="sf")     
+background_map <- ggplot() + 
+  geom_sf(data = worldmap, fill="grey30", lwd=0.1, projection=st_crs("+proj=longlat +datum=WGS84"))+         
+  coord_sf(xlim=c(100,130), ylim=c(5,35))                                       
+
+background_map
+
+background_map + geom_point(data = SSIN_867_locations2, aes(x=lon, y=lat,colour="867"), size=1, shape=20)
+
+```
+
+
+#Creates a map with all birds, showing data points between the two equinox periods
+```{r}
+background_map +
+  geom_point(data=subset(SSIN_867_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="867"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_872_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="872"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_874_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="874"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_875_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="875"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_876_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="876"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_878_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="878"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_880_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="880"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_884_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon, y=lat,colour="884"), size=1, shape=20)
+
+background_map +
+  geom_point(data=subset(SSIN_867_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon5day, y=lat5day,colour="867"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_872_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon5day, y=lat5day,colour="872"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_874_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon5day, y=lat5day,colour="874"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_875_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon5day, y=lat5day,colour="875"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_876_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon5day, y=lat5day,colour="876"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_878_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon5day, y=lat5day,colour="878"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_880_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon5day, y=lat5day,colour="880"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_884_rolling, Date > "2021-10-08" & Date < "2022-03-05"), aes(x=lon5day, y=lat5day,colour="884"), size=1, shape=20)
+
+background_map +
+  geom_point(data=subset(SSIN_884_rolling, Date > "2021-06-01" & Date < "2021-06-30"), aes(x=lon3day, y=lat3day,colour="884"), size=1, shape=20)
+background_map +
+  geom_point(data=subset(SSIN_884_rolling, Date > "2021-07-01" & Date < "2021-07-31"), aes(x=lon3day, y=lat3day,colour="884"), size=1, shape=20)
+background_map +
+  geom_point(data=subset(SSIN_884_rolling, Date > "2021-08-01" & Date < "2021-08-31"), aes(x=lon3day, y=lat3day,colour="884"), size=1, shape=20)
+background_map +
+  geom_point(data=subset(SSIN_884_rolling, Date > "2021-09-01" & Date < "2021-09-30"), aes(x=lon3day, y=lat3day,colour="884"), size=1, shape=20)
+background_map +
+  geom_point(data=subset(SSIN_884_rolling, Date > "2021-10-01" & Date < "2021-10-31"), aes(x=lon3day, y=lat3day,colour="884"), size=1, shape=20)
+background_map +
+  geom_point(data=subset(SSIN_884_rolling, Date > "2021-11-01" & Date < "2021-11-30"), aes(x=lon3day, y=lat3day,colour="884"), size=1, shape=20)
+background_map +
+  geom_point(data=subset(SSIN_884_rolling, Date > "2021-12-01" & Date < "2021-12-31"), aes(x=lon3day, y=lat3day,colour="884"), size=1, shape=20)
+background_map +
+  geom_point(data=subset(SSIN_884_rolling, Date > "2022-01-01" & Date < "2022-01-31"), aes(x=lon3day, y=lat3day,colour="884"), size=1, shape=20)
+background_map +
+  geom_point(data=subset(SSIN_884_rolling, Date > "2022-02-01" & Date < "2022-02-28"), aes(x=lon3day, y=lat3day,colour="884"), size=1, shape=20)
+background_map +
+  geom_point(data=subset(SSIN_884_rolling, Date > "2022-03-01" & Date < "2022-03-31"), aes(x=lon3day, y=lat3day,colour="884"), size=1, shape=20)
+background_map +
+  geom_point(data=subset(SSIN_884_rolling, Date > "2022-04-01" & Date < "2022-04-30"), aes(x=lon3day, y=lat3day,colour="884"), size=1, shape=20)
+background_map +
+  geom_point(data=subset(SSIN_884_rolling, Date > "2022-05-01" & Date < "2022-05-31"), aes(x=lon3day, y=lat3day,colour="884"), size=1, shape=20)
+
+str(SSIN_878_rolling)
+```
+
+#Creates a map with all birds showing an ellipse for the period December-January (mid-winter range)
+```{r}
+background_map +
+  stat_ellipse(data=subset(SSIN_867_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="867"), size=1, shape=20)+
+  stat_ellipse(data=subset(SSIN_872_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="872"), size=1, shape=20)+
+  stat_ellipse(data=subset(SSIN_874_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="874"), size=1, shape=20)+
+  stat_ellipse(data=subset(SSIN_875_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="875"), size=1, shape=20)+
+  stat_ellipse(data=subset(SSIN_876_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="876"), size=1, shape=20)+
+  stat_ellipse(data=subset(SSIN_878_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="878"), size=1, shape=20)+
+  stat_ellipse(data=subset(SSIN_880_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="880"), size=1, shape=20)+
+  stat_ellipse(data=subset(SSIN_884_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="884"), size=1, shape=20)
+
+
+background_map +
+  geom_point(data=subset(SSIN_867_locations3, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="867"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_872_locations3, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="872"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_874_locations3, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="874"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_875_locations3, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="875"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_876_locations3, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="876"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_878_locations3, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="878"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_880_locations3, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="880"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_884_locations3, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="884"), size=1, shape=20)
+
+background_map +
+  geom_point(data=subset(SSIN_867_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="867"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_872_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="872"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_874_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="874"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_875_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="875"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_876_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="876"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_878_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="878"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_880_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="880"), size=1, shape=20)+
+  geom_point(data=subset(SSIN_884_locations2, Date > "2021-12-01" & Date < "2022-01-31"), aes(x=lon, y=lat,colour="884"), size=1, shape=20)
+
+```
+
+
+#This draws the ellipse for each month for an individual. I need to adjust how to deal with aesthetics (currently all ellipses are the same colour!)
+```{r}
+date_ellipse <- function(file, start_date, end_date) {
+  date_ellipse <- stat_ellipse(data=subset(file, Date > start_date & Date < end_date), aes(x=lon, y=lat), size=1, shape=20)
+  
+  return(date_ellipse)
+}  
+
+background_map +
+  date_ellipse(SSIN_884_locations2, "2021-09-01", "2021-09-30") +
+  date_ellipse(SSIN_884_locations2, "2021-10-01", "2021-10-31") +
+  date_ellipse(SSIN_884_locations2, "2021-11-01", "2021-11-30") +
+  date_ellipse(SSIN_884_locations2, "2021-12-01", "2021-12-31") +
+  date_ellipse(SSIN_884_locations2, "2022-01-01", "2022-01-31") +
+  date_ellipse(SSIN_884_locations2, "2022-02-01", "2022-02-28") +
+  date_ellipse(SSIN_884_locations2, "2022-03-01", "2022-03-31")
+
+
+```
+

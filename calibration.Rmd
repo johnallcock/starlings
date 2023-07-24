@@ -1,0 +1,215 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#Open packages
+```{r}
+library(GeoLocTools)
+setupGeolocation()
+
+```
+
+
+#Load twilight data and convert to GeoLights format
+```{r}
+lon.calib <- 114.065
+lat.calib <- 22.511
+
+twl <- read.csv(paste(wd, "SSIN_872_twilights.csv", sep = "/"))
+  twl$Twilight <- as.POSIXct(twl$Twilight, tz = "GMT")
+  
+twl.gl  <- export2GeoLight(twl) 
+head(twl.gl)
+
+loessFilter(twl.gl, k = 3, plot = T)
+twl.gl$keep <- loessFilter(twl.gl, k = 3, plot = T)
+
+```
+
+
+#View twilight times
+```{r}
+offset <- 4 # adjusts the y-axis to put night (dark shades) in the middle
+lightImage( tagdata = SSIN_872,
+            offset = offset,     
+            zlim = c(0, 4))
+
+tsimagePoints(twl$Twilight, offset = offset, pch = 16, cex = 1.2,
+              col = ifelse(twl$Deleted, "grey20", ifelse(twl$Rise, "firebrick", "cornflowerblue")))
+
+
+```
+
+
+#First step is to identify periods when the bird was at the calibration location (LMC)
+I am assuming that birds are present at LMC area until at least 15 July and return before 20 April. This seems to fit for all birds
+```{r}
+lightImage( tagdata = SSIN_872,
+            offset = offset,     
+            zlim = c(0, 10))
+
+tsimageDeploymentLines(twl$Twilight, lon.calib, lat.calib, offset = offset,
+                       lwd = 2, col = adjustcolor("orange", alpha.f = 0.8))
+
+tm1 <- c(as.POSIXct("2021-06-08"), as.POSIXct("2021-07-15")) ##Adjust tm1 to tag date
+tm2 <- c(as.POSIXct("2022-04-20"), as.POSIXct("2022-05-06")) ##Adjust tw2 to retrieval date
+
+abline(v = tm1, lty = c(1,2), col = "firebrick", lwd = 1.5)
+abline(v = tm2, lty = c(1,2), col = "firebrick", lwd = 1.5)
+
+
+```
+
+##TIDY THIS UP. a combination of the boxes above and below that can exclude nesting periods (for females)
+```{r}
+lightImage( tagdata = raw,
+            offset = offset,     
+            zlim = c(0, 10))
+
+tsimageDeploymentLines(twl$Twilight, lon.calib, lat.calib, offset, lwd = 2, col = "orange")
+
+tm1 <- c(as.POSIXct("2021-05-27"), as.POSIXct("2021-07-19")) 
+tm2 <- c(as.POSIXct("2022-04-04"), as.POSIXct("2022-06-02")) 
+tm3 <- c(as.POSIXct("2021-07-05"), as.POSIXct("2021-07-19")) 
+tm4 <- c(as.POSIXct("2022-04-18"), as.POSIXct("2022-05-03")) 
+tm5 <- c(as.POSIXct("2022-05-20"), as.POSIXct("2022-06-02")) 
+
+abline(v = tm1, lty = c(1,2), col = "firebrick", lwd = 1.5)
+abline(v = tm2, lty = c(1,2), col = "firebrick", lwd = 1.5)
+abline(v = tm3, lty = c(1,2), col = "cornflowerblue", lwd = 1.5)
+abline(v = tm4, lty = c(1,2), col = "cornflowerblue", lwd = 1.5)
+abline(v = tm5, lty = c(1,2), col = "cornflowerblue", lwd = 1.5)
+
+d_calib <- export2GeoLight(subset(twl, Twilight>=tm1[1] & Twilight<=tm1[2] | Twilight>=tm2[1] & Twilight<=tm2[2]))
+d_calib2 <- export2GeoLight(subset(twl, Twilight>=tm1[1] & Twilight<=tm3[1] | Twilight>=tm2[1] & Twilight<=tm4[1] | Twilight>=tm4[2] & Twilight<=tm5[1]))
+str(d_calib)
+str(d_calib2)
+
+getElevation(twl = d_calib, known.coord = c(lon.calib, lat.calib), 
+                        method = "gamma")
+getElevation(twl = d_calib2, known.coord = c(lon.calib, lat.calib), 
+                        method = "gamma")
+```
+
+#Calibration based on known location (LMC)
+I have assumed that birds are present at LMC area until at least 
+```{r}
+d.calib <- subset(twl.gl, (tFirst>=tm1[1] & tSecond<=tm1[2]) | (tFirst>=tm2[1] & tSecond<=tm2[2]))
+
+gE <- getElevation(twl = d.calib, known.coord = c(lon.calib, lat.calib), 
+                        method = "gamma")
+
+gE
+
+```
+
+
+#Estimate locations based on calibration above and map these
+```{r}
+crds <- coord(twl.gl, degElevation = 90-gE[1], note = FALSE)
+
+## using tripMap
+tripMap(crds, xlim = c(100,130), ylim = c(5,35))
+points(lon.calib, lat.calib, pch = 21, cex = 1.5, bg = "white") # adding the release location
+
+# using the plot option (you need to remove the hash in front of the code)
+ plot(crds, type = "n", xlim = c(100,130), ylim = c(5,35)) # sets the extent
+ plot(wrld_simpl, col = "grey90", border = "grey50", add = T) # adds the map from maptools
+ points(crds, pch = 21, cex = 0.5, bg = "white", type = "o")
+ points(lon.calib, lat.calib, pch = 21, cex = 1.5, bg = "firebrick") # adding the release location
+
+ 
+```
+
+
+#Hill-Ekstrom estimation of locations (based on stationary periods outside the breeding season)
+Not sure how well this works for our data
+```{r}
+cL <- changeLight(twl = twl.gl, quantile = 0.85)
+str(cL)
+
+max(twl.gl$tFirst[cL$site==1])
+
+StartEnd <- range(which(twl$Twilight>=(min(twl.gl$tFirst[cL$site==1])+5*24*60*60) &
+                        twl$Twilight<=(max(twl.gl$tFirst[cL$site==1])+5*24*60*60)))
+
+HE <- findHEZenith(twl, range = StartEnd)
+
+```
+
+
+#Movement analysis and merging locations
+```{r}
+cL <- changeLight(twl = twl.gl, quantile = 0.8, days = 2)
+
+## may take several minutes to complete
+mS <- mergeSites2(twl = twl.gl, site = cL$site, 
+                  distThreshold = 500, 
+                  degElevation = gE[2]-0.75,         # the HE corrected zero sun elevation angle
+                  alpha = gE[3:4], method = "gamma", # parameters and model of the twilight errro
+                  map = worldmap,
+                  mask = 'land')                     # mask option
+
+
+```
+
+
+
+```{r}
+str(mS)
+mS$summary[,1:3]
+schedule(mS$twl$tFirst, mS$twl$tSecond, site = mS$site)
+
+mS867 <- mS
+
+```
+
+
+
+```{r}
+data(wrld_simpl)
+## create a color scale for stationary sites dependent on data
+Seasonal_palette <- grDevices::colorRampPalette(grDevices::hsv(1 - ((1:365) + (365/4))%%365/365, s = 0.8, v = 0.8), 
+                                                space = "Lab")
+
+
+### replace first and last estimate with the deployment/retrieval location
+sm <- mS$summary
+  sm[c(1,nrow(sm)), 2:3] <- matrix(c(lon.calib, lat.calib), ncol = 2, nrow = 2, byrow = T)
+  sm[c(1,nrow(sm)), -c(1:3)] <- NA
+
+day  <- as.POSIXlt(aggregate(mS$twl$tFirst[mS$site>0], by = list(mS$site[mS$site>0]), FUN = median)$x, 
+                   origin = "1970-01-01", tz  ="GMT")$yday
+stp  <- as.numeric(aggregate(mS$twl$tFirst[mS$site>0], by = list(mS$site[mS$site>0]), FUN = function(x) x =
+                               difftime(x[length(x)],x[1], units = "days"))$x)
+
+## scale point of stationary periods according to the time spent on the site
+cexf <- approxfun(range(stp), c(3, 9), rule = 3)
+
+
+plot(NA, xlim = c(100,130), ylim = c(5,35), 
+     type = "n", bty = "n", mgp = c(3,2,1), xlab = "", ylab = "", las = 1)
+plot(wrld_simpl, add = T, col = "grey90", border = "grey90")
+
+lines(sm[,2], sm[,3], lwd = 2, lty = 2)
+arrows(sm[,2], sm[,8], sm[,2], sm[,11], lwd = 0.8, length = 0, col = adjustcolor("black", alpha.f = 0.6))
+arrows(sm[,2], sm[,9], sm[,2], sm[,10], lwd = 2, length = 0)
+
+arrows(sm[,4], sm[,3], sm[,7], sm[,3], lwd = 0.8, length = 0, col = adjustcolor("black", alpha.f = 0.6))
+arrows(sm[,5], sm[,3], sm[,6], sm[,3], lwd = 2, length = 0)
+
+arrows(sm[,4], sm[,3], sm[,5], sm[,3], lwd = 1.2, length = 0)
+points(sm[,2], sm[,3], pch = 21, cex = c(1, cexf(stp[-c(1, length(stp))]), 1), bg = Seasonal_palette(365)[day], lwd = 2)
+text(sm[,2], sm[,3], 1:nrow(sm), 
+     col = c("transparent", rep(0, nrow(sm)-2), "transparent"))
+mapplots::add.pie(x = -90, y = -28, z = rep(1, 12), radius = 10, col = Seasonal_palette(12), init.angle = day[1])
+
+```
+
+
+
+```{r}
+
+```
+
