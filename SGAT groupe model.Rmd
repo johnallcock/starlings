@@ -4,6 +4,16 @@ output: html_notebook
 ---
 
 
+#Open packages
+```{r}
+library(GeoLocTools)
+setupGeolocation()
+library(dplyr)
+library(ggplot2)
+
+```
+
+
 #Read in data and convert to correct format
 ```{r}
 lon.calib <- 114.065
@@ -31,17 +41,92 @@ SSIN878_twl <- read.csv(paste(wd, "SSIN_878_twilights.csv", sep = "/"))
 SSIN880_twl <- read.csv(paste(wd, "SSIN_880_twilights.csv", sep = "/"))
 SSIN884_twl <- read.csv(paste(wd, "SSIN_884_twilights.csv", sep = "/"))
 
-raw <- SSIN_876
+```
 
-twl <- SSIN876_twl
-  twl$Twilight <- as.POSIXct(twl$Twilight, tz = "UTC")
-  twl <- twl[!twl$Deleted,]
-
-raw <- subset(raw, Date>=min(twl$Twilight) & Date<=max(twl$Twilight)) # clipping raw data to relevant extent  
+```{r}
+SSIN867_calibdate <- data.frame(tm1 = as.POSIXct(c("2021-06-01", "2021-08-15")),
+                              tm2 = as.POSIXct(c("2022-04-15", "2022-07-10")), 
+                              ex1 = NA, 
+                              ex2 = NA,
+                              ex3 = NA)
+SSIN872_calibdate <- data.frame(tm1 = as.POSIXct(c("2021-06-08", "2021-08-15")),
+                              tm2 = as.POSIXct(c("2022-04-04", "2022-05-06")), 
+                              ex1 = as.POSIXct(c("2021-06-08", "2021-06-09")), 
+                              ex2 = as.POSIXct(c("2022-04-18", "2022-05-03")),
+                              ex3 = NA)
+SSIN874_calibdate <- data.frame(tm1 = as.POSIXct(c("2021-05-27", "2021-08-15")),
+                              tm2 = as.POSIXct(c("2022-04-04", "2022-07-10")), 
+                              ex1 = NA, 
+                              ex2 = NA,
+                              ex3 = NA)
+SSIN875_calibdate <- data.frame(tm1 = as.POSIXct(c("2021-05-27", "2021-08-15")),
+                              tm2 = as.POSIXct(c("2022-04-04", "2022-05-04")), 
+                              ex1 = as.POSIXct(c("2021-06-02", "2021-06-24")), 
+                              ex2 = as.POSIXct(c("2022-04-18", "2022-05-04")),
+                              ex3 = NA)
+SSIN876_calibdate <- data.frame(tm1 = as.POSIXct(c("2021-05-27", "2021-08-15")),
+                              tm2 = as.POSIXct(c("2022-04-04", "2022-06-02")), 
+                              ex1 = as.POSIXct(c("2021-07-05", "2021-07-19")), 
+                              ex2 = as.POSIXct(c("2022-04-18", "2022-05-03")),
+                              ex3 = as.POSIXct(c("2022-05-20", "2022-06-02")))
+SSIN878_calibdate <- data.frame(tm1 = as.POSIXct(c("2021-05-20", "2021-08-15")),
+                              tm2 = as.POSIXct(c("2022-04-15", "2022-05-10")), 
+                              ex1 = as.POSIXct(c("2021-06-14", "2021-06-30")), 
+                              ex2 = as.POSIXct(c("2022-04-30", "2022-05-10")),
+                              ex3 = NA)
+SSIN880_calibdate <- data.frame(tm1 = as.POSIXct(c("2021-06-08", "2021-08-15")),
+                              tm2 = as.POSIXct(c("2022-04-11", "2022-05-25")), 
+                              ex1 = NA, 
+                              ex2 = as.POSIXct(c("2022-04-27", "2022-05-16")),
+                              ex3 = NA)
+SSIN884_calibdate <- data.frame(tm1 = as.POSIXct(c("2021-06-08", "2021-08-15")),
+                              tm2 = as.POSIXct(c("2022-04-15", "2022-05-19")), 
+                              ex1 = NA, 
+                              ex2 = NA,
+                              ex3 = NA)
 
 ```
 
 
+#Set up data files for the relevant individual
+```{r}
+raw <- SSIN_872
+
+twl <- SSIN872_twl
+twl$Twilight <- as.POSIXct(twl$Twilight, tz = "UTC")
+twl <- twl[!twl$Deleted,]
+
+
+raw <- subset(raw, Date>=min(twl$Twilight) & Date<=max(twl$Twilight)) # clipping raw data to relevant extent  
+
+calibdate <- SSIN872_calibdate
+
+geo_twl <- export2GeoLight(twl)
+
+#Remove equinox dates
+twl <- subset(twl, Twilight <= as.POSIXct("2021-09-08") | Twilight >= as.POSIXct("2021-10-08") & Twilight <= as.POSIXct("2022-03-05") | Twilight >= as.POSIXct("2022-04-04"))
+geo_twl <- subset(geo_twl, tFirst <= as.POSIXct("2021-09-08") | tFirst >= as.POSIXct("2021-10-08") & tFirst <= as.POSIXct("2022-03-05") | tFirst >= as.POSIXct("2022-04-04"))
+
+
+```
+
+
+#FOR FEMALES ONLY - Optional to remove periods of incubation
+```{r}
+##For 872, 875, 876, 878
+#twl <- subset(twl, Twilight < calibdate$ex1[1] | Twilight > calibdate$ex1[2])
+#geo_twl <- subset(geo_twl, tFirst < calibdate$ex1[1] | tFirst > calibdate$ex1[2])
+
+##For 872, 875, 876, 878, 880
+#twl <- subset(twl, Twilight < calibdate$ex2[1] | Twilight > calibdate$ex2[2])
+#geo_twl <- subset(geo_twl, tFirst < calibdate$ex2[1] | tFirst > calibdate$ex2[2])
+
+##For 876
+#twl <- subset(twl, Twilight < calibdate$ex3[1] | Twilight > calibdate$ex3[2])
+#geo_twl <- subset(geo_twl, tFirst < calibdate$ex3[1] | tFirst > calibdate$ex3[2])
+
+
+```
 
 
 #View light levels over the course of the whole year
@@ -67,25 +152,23 @@ lightImage( tagdata = raw,
 
 tsimageDeploymentLines(twl$Twilight, lon.calib, lat.calib, offset, lwd = 2, col = "orange")
 
-tm.calib <- as.POSIXct(c("2015-07-20", "2015-08-29"), tz = "UTC")
-abline(v = tm.calib, lwd = 2, lty = 2, col = "orange")
+tm1 <- calibdate$tm1
+tm2 <- calibdate$tm2
+ex1 <- calibdate$ex1
+ex2 <- calibdate$ex2
+ex3 <- calibdate$ex3
 
-
-tm1 <- c(as.POSIXct("2021-05-27"), as.POSIXct("2021-07-19")) #dates present in 2021
-tm2 <- c(as.POSIXct("2022-04-04"), as.POSIXct("2022-06-02")) #dates present in 2022
-ex3 <- c(as.POSIXct("2021-07-05"), as.POSIXct("2021-07-19")) #exclusion period 1
-ex4 <- c(as.POSIXct("2022-04-18"), as.POSIXct("2022-05-03")) #exclusion period 2
-ex5 <- c(as.POSIXct("2022-05-20"), as.POSIXct("2022-06-02")) #exclusion period 3
 
 abline(v = tm1, lty = c(1,2), col = "firebrick", lwd = 1.5)
 abline(v = tm2, lty = c(1,2), col = "firebrick", lwd = 1.5)
-abline(v = tm3, lty = c(1,2), col = "cornflowerblue", lwd = 1.5)
-abline(v = tm4, lty = c(1,2), col = "cornflowerblue", lwd = 1.5)
-abline(v = tm5, lty = c(1,2), col = "cornflowerblue", lwd = 1.5)
+abline(v = ex1, lty = c(1,2), col = "cornflowerblue", lwd = 1.5)
+abline(v = ex2, lty = c(1,2), col = "cornflowerblue", lwd = 1.5)
+abline(v = ex3, lty = c(1,2), col = "cornflowerblue", lwd = 1.5)
 
 
 d_calib <- subset(twl, Twilight >= tm1[1] & Twilight <= tm1[2] | Twilight >= tm2[1] & Twilight <= tm2[2])
-d_calib <- subset(d_calib, Twilight <= ex3[1] | (Twilight >= ex3[2] & Twilight <= ex4[1]) | (Twilight >= ex4[2] & Twilight <= ex5[1]) | Twilight >= ex5[2])
+
+#d_calib <- subset(d_calib, Twilight <= ex1[1] | (Twilight >= ex1[2] & Twilight <= ex2[1]) | (Twilight >= ex2[2] & Twilight <= ex3[1]) | Twilight >= ex3[2])
 
 
 ```
@@ -123,7 +206,7 @@ x0 <- path$x
 z0 <- trackMidpts(x0)
 
 data(wrld_simpl)
-plot(x0, type = "n", xlab = "", ylab = "", xlim = c(100,130), ylim = c(5,35))
+plot(x0, type = "n", xlab = "", ylab = "", xlim = c(100,130), ylim = c(-10,35))
 plot(wrld_simpl, col = "grey95", add = T)
 
 points(path$x, pch=19, col="cornflowerblue", type = "o")
@@ -137,20 +220,16 @@ box()
 #Define known locations
 Maybe worth doing this with all dates known to be at breeding site
 ```{r}
-fixedx <- rep(F, nrow(x0))
+fixedx <- rep(FALSE, nrow(x0))
 
-which(path$time > "2021-07-19")
-fixedx[1:106] <- T   # mark all records before 2021-07-19 as at capture site
+fixedx[1:max(which(path$time <= "2021-07-19"))] <- TRUE   # mark all records before 2021-07-19 as at capture site
 
-which(path$time > "2022-04-04")
-fixedx[624:nrow(x0)] <- T   # mark all records after 2022-04-04 as at capture site
+fixedx[min(which(path$time >= "2022-04-04")):nrow(x0)] <- TRUE   # mark all records after 2022-04-04 as at capture site
 
 x0[fixedx, 1] <- lon.calib
 x0[fixedx, 2] <- lat.calib
 
 z0 <- trackMidpts(x0) # we need to update the z0 locations
-
-x0
 
 ```
 
@@ -158,17 +237,13 @@ x0
 
 
 
-####THIS IS THE PART I"VE USED PREVIOUSLY
-
-
+#Identify stopover locations and merge any that are close together
 ```{r}
-
-geo_twl <- export2GeoLight(twl)
-
 # Often it is necessary to play around with quantile and days
 # quantile defines how many stopovers there are. the higher, the fewer there are
 # days indicates the duration of the stopovers 
-cL <- changeLight(twl=geo_twl, quantile=0.9, summary = F, days = 2, plot = T)
+#cL <- changeLight(twl=geo_twl, quantile=0.9, summary = TRUE, days = 5, plot = TRUE)
+cL <- changeLight(twl=geo_twl, rise.prob = 0.04, set.prob = 0.04, days = 5, plot = TRUE)
 
 # merge site helps to put sites together that are separated by single outliers.
 mS <- mergeSites(twl = geo_twl, site = cL$site, degElevation = 90-zenith, distThreshold = 200)
@@ -194,7 +269,6 @@ g <- makeGroups(grouped)
 # Add data to twl file
 twl$group <- c(g, g[length(g)])
 
-
 # Add behavior vector
 behaviour <- c()
 for (i in 1:max(g)){
@@ -203,6 +277,7 @@ for (i in 1:max(g)){
 stationary <- grouped[behaviour]
 sitenum <- cumsum(stationary==T)
 sitenum[stationary==F] <- 0
+
 
 
 ```
@@ -228,8 +303,41 @@ matplot(0:100, dgamma(0:100, beta[1], beta[2]),
         type = "l", col = "orange",lty = 1,lwd = 2,ylab = "Density", xlab = "km/h")
 ```
 
+```{r}
+distribution.mask <- function(xlim, ylim, n = 4, land = TRUE, shape) {
+  r <- raster(nrows = n * diff(ylim), ncols = n * diff(xlim), xmn = xlim[1], 
+              xmx = xlim[2], ymn = ylim[1], ymx = ylim[2], crs = proj4string(shape))
+  r <- cover(rasterize(elide(shape, shift = c(-360, 0)), r, 1, silent = TRUE), 
+             rasterize(shape, r, 1, silent = TRUE), rasterize(elide(shape, 
+                                                                    shift = c(360, 0)), r, 1, silent = TRUE))
+  r <- as.matrix(is.na(r))[nrow(r):1, ]
+  if (land) 
+    r <- !r
+  xbin <- seq(xlim[1], xlim[2], length = ncol(r) + 1)
+  ybin <- seq(ylim[1], ylim[2], length = nrow(r) + 1)
+  
+  function(p) {
+    r[cbind(.bincode(p[, 2], ybin), .bincode(p[, 1], xbin))]
+  }
+}
+
+xlim <- c(100, 130)
+ylim <- c(0, 35)
+
+is.dist <- distribution.mask(shape = wrld_simpl, xlim = xlim, ylim = ylim, n = 4, land = TRUE)
+
+## Define the log prior for x and z
+logp <- function(p) {
+  f <- is.dist(p)
+  ifelse(f | is.na(f), 0, -10)
+}
+
+```
 
 
+
+#Create mask for land & water
+(I'm not sure that this works, may need some refinement)
 ```{r}
 earthseaMask <- function(xlim, ylim, n = 2, pacific=FALSE, index) {
   
@@ -258,13 +366,12 @@ earthseaMask <- function(xlim, ylim, n = 2, pacific=FALSE, index) {
 }
 
 
-
 xlim <- c(100, 130)
-ylim <- c(5, 35)
+ylim <- c(0, 35)
 
 index = ifelse(stationary, 1, 2)
 
-mask <- earthseaMask(xlim, ylim, n = 1, index=index)
+mask <- earthseaMask(xlim, ylim, n = 10, index=index)
 
 ## Define the log prior for x and z
 logp <- function(p) {
@@ -276,7 +383,7 @@ logp <- function(p) {
 ```
 
 
-
+#Fit the initial model
 ```{r}
 model <- groupedThresholdModel(twl$Twilight,
                                twl$Rise,
@@ -297,10 +404,11 @@ z.proposal <- mvnorm(S = diag(c(0.005, 0.005)), n = nrow(z0))
 
 # Fit the model
 fit <- estelleMetropolis(model, x.proposal, z.proposal, iters = 1000, thin = 20)
+
 ```
 
 
-
+#Refine the model
 ```{r}
 # use output from last run
 x0 <- chainLast(fit$x)
@@ -337,10 +445,11 @@ z.proposal <- mvnorm(chainCov(fit$z), s = 0.3)
 
 fit <- estelleMetropolis(model, x.proposal, z.proposal, x0 = chainLast(fit$x),
                          z0 = chainLast(fit$z), iters = 2000, thin = 20, chain = 1)
+
 ```
 
 
-
+#Map the final results
 ```{r}
 # sm <- locationSummary(fit$x, time=fit$model$time)
 sm <- SGAT2Movebank(fit$x, time = twl$Twilight, group = twl$group)
@@ -351,10 +460,10 @@ data(wrld_simpl)
 
 # empty raster of the extent
 r <- raster(nrows = 2 * diff(ylim), ncols = 2 * diff(xlim), xmn = xlim[1]-5,
-            xmx = xlim[2]+5, ymn = 5, ymx = 35, crs = proj4string(wrld_simpl))
+            xmx = xlim[2]+5, ymn = 0, ymx = 35, crs = proj4string(wrld_simpl))
 
 s <- slices(type = "intermediate", breaks = "week", mcmc = fit, grid = r)
-sk <- slice(s, sliceIndices(s))
+sk <- SGAT::slice(s, sliceIndices(s))
 
 plot(sk, useRaster = F,col = c("transparent", rev(viridis::viridis(50))), xlim=c(100, 135), ylim=c(0, 90))
 plot(wrld_simpl, xlim=c(100, 135), ylim=c(0, 90),add = T, bg = adjustcolor("black",alpha=0.1))
@@ -369,6 +478,7 @@ points(sm[,"Lon.50."], sm[,"Lat.50."], pch=21, bg=colours[sitenum+1],
 points(sm[,"Lon.50."], sm[,"Lat.50."], pch=as.character(sitenum),
        cex = ifelse(sitenum>0, 0.8, 0))
 
+title(main = "Female 872", cex.main = 1, adj = 0.05, line = -1)
 
 
 ```
@@ -377,11 +487,109 @@ points(sm[,"Lon.50."], sm[,"Lat.50."], pch=as.character(sitenum),
 
 ```{r}
 write.csv(sm, 
-          paste0(wd, "SSIN876_SGATGroupSummary.csv"), 
+          paste0(wd, "/revised 2023-08-10/SSIN872_SGATGroupSummary.csv"), 
           row.names = F)
 
 save(fit, 
-     file = paste0(wd, "SSIN876_SGATGroupfit.RData"), 
+     file = paste0(wd, "/revised 2023-08-10/SSIN872_SGATGroupfit.RData"), 
      compress = T)
+
+write.csv(cL$migTable,
+          paste0(wd, "/revised 2023-08-10/SSIN872_SGATmigTable.csv"), 
+          row.names = F)
+
+
+```
+
+
+```{r}
+#colours <- c("black",colorRampPalette(c("blue","yellow","red"))(max(twl.rev$Site)))
+data(wrld_simpl)
+
+# empty raster of the extent
+#r <- raster(nrows = 2 * diff(ylim), ncols = 2 * diff(xlim), xmn = xlim[1]-5,
+#            xmx = xlim[2]+5, ymn = 0, ymx = 35, crs = proj4string(wrld_simpl))
+
+#s <- slices(type = "intermediate", breaks = "week", mcmc = fit, grid = r)
+#sk <- SGAT::slice(s, sliceIndices(s))
+
+plot(sk, useRaster = F,col = c("transparent", rev(viridis::viridis(50))), xlim=c(100, 135), ylim=c(0, 90))
+plot(wrld_simpl, xlim=c(100, 135), ylim=c(0, 90),add = T, bg = adjustcolor("black",alpha=0.1))
+
+with(sm[sitenum>0,], arrows(`Lon.50.`, `Lat.2.5.`, `Lon.50.`, `Lat.97.5.`, length = 0, lwd = 2.5, col = "firebrick"))
+with(sm[sitenum>0,], arrows(`Lon.2.5.`, `Lat.50.`, `Lon.97.5.`, `Lat.50.`, length = 0, lwd = 2.5, col = "firebrick"))
+#lines(sm[,"Lon.50."], sm[,"Lat.50."], col = "darkorchid4", lwd = 2)
+
+#points(sm[,"Lon.50."], sm[,"Lat.50."], pch=21, bg=colours[sitenum+1], 
+#      cex = ifelse(sitenum>0, 3, 0), col = "firebrick", lwd = 2.5)
+
+points(sm[,"Lon.50."], sm[,"Lat.50."], pch=as.character(sitenum),
+       cex = ifelse(sitenum>0, 0.8, 0))
+
+#title(main = "Male 867", cex.main = 1, adj = 0.05, line = -1)
+
+```
+#Open and combine files containing dates & estimated locations of stopovers
+```{r}
+sm867 <- read.csv(paste0(wd, "/revised 2023-08-10/SSIN867_SGATGroupSummary.csv"))
+sm872 <- read.csv(paste0(wd, "/revised 2023-08-10/SSIN872_SGATGroupSummary.csv"))
+sm874 <- read.csv(paste0(wd, "/revised 2023-08-10/SSIN874_SGATGroupSummary.csv"))
+sm875 <- read.csv(paste0(wd, "/revised 2023-08-10/SSIN875_SGATGroupSummary.csv"))
+sm876 <- read.csv(paste0(wd, "/revised 2023-08-10/SSIN876_SGATGroupSummary.csv"))
+sm878 <- read.csv(paste0(wd, "/revised 2023-08-10/SSIN878_SGATGroupSummary.csv"))
+sm880 <- read.csv(paste0(wd, "/revised 2023-08-10/SSIN880_SGATGroupSummary.csv"))
+sm884 <- read.csv(paste0(wd, "/revised 2023-08-10/SSIN884_SGATGroupSummary.csv"))
+
+sm867$duration <- difftime(sm867$EndTime, sm867$StartTime, units = "days")
+sm872$duration <- difftime(sm872$EndTime, sm872$StartTime, units = "days")
+sm874$duration <- difftime(sm874$EndTime, sm874$StartTime, units = "days")
+sm875$duration <- difftime(sm875$EndTime, sm875$StartTime, units = "days")
+sm876$duration <- difftime(sm876$EndTime, sm876$StartTime, units = "days")
+sm878$duration <- difftime(sm878$EndTime, sm878$StartTime, units = "days")
+sm880$duration <- difftime(sm880$EndTime, sm880$StartTime, units = "days")
+sm884$duration <- difftime(sm884$EndTime, sm884$StartTime, units = "days")
+
+sm867$indiv <- "867"
+sm872$indiv <- "872"
+sm874$indiv <- "874"
+sm875$indiv <- "875"
+sm876$indiv <- "876"
+sm878$indiv <- "878"
+sm880$indiv <- "880"
+sm884$indiv <- "884"
+
+
+sm867$sex <- "Male"
+sm872$sex <- "Female"
+sm874$sex <- "Male"
+sm875$sex <- "Female"
+sm876$sex <- "Female"
+sm878$sex <- "Female"
+sm880$sex <- "Female"
+sm884$sex <- "Male"
+
+allsites <- rbind(sm867, sm872, sm874, sm875, sm876, sm878, sm880, sm884)
+allsites$indiv <- as.factor(allsites$indiv)
+
+allsites[which(allsites$duration >= 5),]
+allsites$duration <- as.integer(allsites$duration)
+```
+
+#Map all birds onto a single map
+```{r}
+worldmap <- rnaturalearth::ne_countries(scale="medium", returnclass="sf")     
+background_map <- ggplot() + 
+  geom_sf(data = worldmap, fill="grey80", lwd=0.1, projection=st_crs("+proj=longlat +datum=WGS84"))+         
+  coord_sf(xlim=c(100,130), ylim=c(5,35)) +
+  theme_minimal()
+
+background_map + 
+  geom_errorbar(aes(xmin = allsites[which(allsites$duration >= 5),]$Lon.2.5., xmax = allsites[which(allsites$duration >= 5),]$Lon.97.5., y = allsites[which(allsites$duration >= 5),]$Lat.50.), colour = "red") +
+  geom_errorbar(aes(ymin = allsites[which(allsites$duration >= 5),]$Lat.2.5., ymax = allsites[which(allsites$duration >= 5),]$Lat.97.5., x = allsites[which(allsites$duration >= 5),]$Lon.50.), colour = "red") +
+  #geom_line(data = subset(allsites, duration >= 5), aes(x=Lon.50., y=Lat.50., colour=indiv)) +
+  geom_point(data = subset(allsites, duration >= 5), aes(x=Lon.50., y=Lat.50., fill=indiv, size = duration), shape=21) +
+  xlab("Longitude")+ 
+  ylab("Latitude")
+
 ```
 
